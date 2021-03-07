@@ -1,0 +1,174 @@
+---
+title: "Host-Parasite Meta-analysis"
+author: "Dave Civitello, Beatriz Willink, Amanda Vicente"
+date: "3/3/2021"
+output: html_document
+---
+
+Read in data and load packages
+```{r, message=FALSE}
+dat <- read.csv("../data/MA_test_dat2.csv", header = T, sep = ",")
+x <-
+  c(
+    "metafor")
+
+lapply(x, function(y) {
+  # check if installed, if not install
+  if (!y %in% installed.packages()[, "Package"])
+    install.packages(y)
+  
+  # load package
+  try(require(y, character.only = T), silent = T)
+})
+```
+
+
+# Getting effect sizes
+
+## Calculate OR and approximate variance from contingency tables
+```{r}
+# store sample size in an object
+N <- nrow(dat)
+
+for (i in 1:N) {
+  # variance cannot be estimated if all individuals in a category are 0
+  if (dat$Variation.Type[i] == "OR" &
+      dat$Success_C[i] > 0 & dat$Success_X[i] > 0 & (dat$N_C[i] - dat$Success_C[i]) > 0 & (dat$N_X[i] - dat$Success_X[i]) > 0) {
+    dat$OR[i] <-
+      (dat$Success_X[i] * (dat$N_C[i] - dat$Success_C[i])) / (dat$Success_C[i] * (dat$N_X[i] - dat$Success_X[i]))
+    dat$Log.OR[i] <- log(dat$OR[i])
+    # approximate variance
+    dat$Log.OR.v[i] <-
+      1 / dat$Success_X[i] + 1 / (dat$N_X[i] - dat$Success_X[i]) + 1 / dat$Success_C[i] + 1 / (dat$N_C[i] - dat$Success_C[i])
+  }
+  else {
+    # if there is no appropiate data, make these columns NA
+    dat$OR[i] <- NA
+    dat$Log.OR[i] <- NA
+    dat$Log.OR.v[i] <- NA
+  }
+}
+
+```
+
+
+## Calculate SD for comparisons with continuous normally distributed variables
+** What do we do with CIs from non-normal distributions?**
+```{r}
+# create SD variables
+dat$SD_C <- vector(length = N)
+dat$SD_X <- vector(length = N)
+
+
+for (i in 1:N) {
+  
+  # Calculate SD if SE is reported
+  if (dat$Variation.Type[i] == "SE") {
+    dat$SD_C[i] <- dat$Variation_C[i] * sqrt(dat$N_C[i])
+    dat$SD_X[i] <- dat$Variation_X[i] * sqrt(dat$N_X[i])
+  } else {
+   
+     # calculate SD if a 95% confidence interval for a normal distribution is reported
+    # this also applies to the Wald confidence interval for prorportions, as it is a normal approximation to the binomial
+    if (dat$Variation.Type[i] == "95CI" |
+        dat$Variation.Type[i] == "Confidence limit (Wald CI)") {
+     
+       # calculate SE from lower and upper limits
+      temp_C1 <- (dat$Upr_C[i] - dat$Mean_C[i]) / 1.96
+      temp_C2 <- (dat$Mean_C[i] - dat$Lwr_C[i]) / 1.96
+      
+      temp_X1 <- (dat$Upr_X[i] - dat$Mean_X[i]) / 1.96
+      temp_X2 <- (dat$Mean_X[i] - dat$Lwr_X[i]) / 1.96
+      
+      # average digitized/recorded values of SE (because we have two) and transform to SD
+      dat$SD_C[i] <- mean(abs(c(temp_C1, temp_C2))) * sqrt(dat$N_C[i])
+      dat$SD_X[i] <- mean(abs(c(temp_C1, temp_C2))) * sqrt(dat$N_X[i])
+    } else {
+     
+       # if SD is reported leave as such
+      if (dat$Variation.Type[i] == "SD") {
+        dat$SD_C[i] <- dat$Variation_C[i]
+        dat$SD_X[i] <- dat$Variation_X[i]
+      } else {
+        
+        # if there is no appropiate data, make these columns NA
+        dat$SD_C[i] <- NA
+        dat$SD_X[i] <- NA
+      }
+    }
+  }
+}
+```
+
+
+## Get effect sizes and variances
+```{r}
+# within groups standard deviation
+dat$S_within <-
+  sqrt(((dat$N_C - 1) * dat$SD_C ^ 2 + (dat$N_X - 1) * dat$SD_X ^ 2) / (dat$N_C + dat$N_X - 2))
+
+# standardized effect size
+for (i in 1:N) {
+  
+  # standardized mean difference
+  # we can't include data without variance
+  if (is.na(dat$S_within[i]) == FALSE & dat$S_within[i] > 0) {
+    dat$d[i] <- (dat$Mean_X[i] - dat$Mean_C[i]) / dat$S_within[i]
+    dat$var.d[i] <- (dat$N_C[i] + dat$N_X[i]) / (dat$N_C[i] * dat$N_X[i]) + (dat$d[i] ^ 2) /(2 * (dat$N_C[i] + dat$N_X[i])) 
+
+  } else{
+    
+    # converting log OR
+    if (is.na(dat$Log.OR.v[i]) == FALSE & dat$Log.OR.v[i] > 0) {
+      dat$d[i] <- dat$Log.OR[i] * (sqrt(3) / pi)
+      dat$var.d[i] <- dat$Log.OR.v[i] * 3 / pi^2
+    } else {
+    
+      # for now, leave other types of effects as NA
+      dat$d[i] <- NA
+      dat$var.d[i] <- NA
+    }
+  }
+}
+```
+
+## Correct for sample size and get g
+```{r}
+# sample size correction factor
+dat$J <- 1 - 3 / (4 * (dat$N_C + dat$N_X - 2) -1)
+
+# corrected effect size
+dat$g <- dat$J * dat$d
+
+# and variance
+dat$var.g <- (dat$J ^ 2) * dat$var.d
+```
+
+# preliminary analysis
+**!!!! Not final analysis, not for publication !!!!**
+```{r}
+m1 <-
+  rma.mv(
+    g ~ 1,
+    V = var.g,
+    random = list( ~ 1 |
+                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat,
+    method = "REML"
+  )
+
+summary(m1)
+
+m2 <-
+  rma.mv(
+    g ~ Trait.category - 1,
+    V = var.g,
+    random = list( ~ 1 |
+                     ID, ~ 1 | Experiment,  ~ 1 | Parasite),
+    data = dat,
+    method = "REML"
+  )
+
+summary(m2)
+```
+
