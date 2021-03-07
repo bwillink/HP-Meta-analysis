@@ -20,16 +20,31 @@ lapply(x, function(y) {
   # load package
   try(require(y, character.only = T), silent = T)
 })
-```
 
+# store sample size in an object
+N <- nrow(dat)
+```
 
 # Getting effect sizes
 
+# Standardize survival/mortality
+
+```{r}
+# which studies report mortality? 
+mort <- grep(pattern = "[M,m]ort", x = dat$Trait)
+
+# if the study reports mortality replace success for failure
+for (i in mort) {
+  dat$Success_C[i] <- dat$N_C[i] - dat$Success_C[i]
+  dat$Success_X[i] <- dat$N_X[i] - dat$Success_X[i]
+  dat$Trait[i] <- "Survival (converted)"
+   }
+dat[7,]
+```
+
+
 ## Calculate OR and approximate variance from contingency tables
 ```{r}
-# store sample size in an object
-N <- nrow(dat)
-
 for (i in 1:N) {
   # variance cannot be estimated if all individuals in a category are 0
   if (dat$Variation.Type[i] == "OR" &
