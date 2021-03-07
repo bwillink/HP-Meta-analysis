@@ -109,24 +109,33 @@ dat$S_within <-
 
 # standardized effect size
 for (i in 1:N) {
-  
   # standardized mean difference
   # we can't include data without variance
   if (is.na(dat$S_within[i]) == FALSE & dat$S_within[i] > 0) {
     dat$d[i] <- (dat$Mean_X[i] - dat$Mean_C[i]) / dat$S_within[i]
-    dat$var.d[i] <- (dat$N_C[i] + dat$N_X[i]) / (dat$N_C[i] * dat$N_X[i]) + (dat$d[i] ^ 2) /(2 * (dat$N_C[i] + dat$N_X[i])) 
-
+    dat$var.d[i] <-
+      (dat$N_C[i] + dat$N_X[i]) / (dat$N_C[i] * dat$N_X[i]) + (dat$d[i] ^ 2) /
+      (2 * (dat$N_C[i] + dat$N_X[i]))
+    
   } else{
-    
-    # converting log OR
-    if (is.na(dat$Log.OR.v[i]) == FALSE & dat$Log.OR.v[i] > 0) {
-      dat$d[i] <- dat$Log.OR[i] * (sqrt(3) / pi)
-      dat$var.d[i] <- dat$Log.OR.v[i] * 3 / pi^2
-    } else {
-    
-      # for now, leave other types of effects as NA
-      dat$d[i] <- NA
-      dat$var.d[i] <- NA
+    # if only F statistic is reported
+    if (dat$Variation.Type[i] == "F_X") {
+      dat$d[i] <-
+        sqrt(dat$F_X[i] * (dat$N_X[i] + dat$N_C[i]) / (dat$N_C[i] * dat$N_X[i]))
+      dat$var.d[i] <-
+        (dat$N_C[i] + dat$N_X[i]) / (dat$N_C[i] * dat$N_X[i]) + (dat$d[i] ^ 2) /
+        (2 * (dat$N_C[i] + dat$N_X[i]))
+      
+    } else{
+      # converting log OR
+      if (is.na(dat$Log.OR.v[i]) == FALSE & dat$Log.OR.v[i] > 0) {
+        dat$d[i] <- dat$Log.OR[i] * (sqrt(3) / pi)
+        dat$var.d[i] <- dat$Log.OR.v[i] * 3 / pi ^ 2
+      } else {
+        # for now, leave other types of effects as NA
+        dat$d[i] <- NA
+        dat$var.d[i] <- NA
+      }
     }
   }
 }
