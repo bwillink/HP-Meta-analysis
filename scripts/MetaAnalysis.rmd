@@ -169,14 +169,14 @@ dat$var.g <- (dat$J ^ 2) * dat$var.d
 ```
 
 ## Variance-covariance of sampling errors matrix (for multiple comparisons)
-This code produces a variance-covariance of sampling errors matrix, n x n, with n = number of effect sizes.  It requires the dataset (dat), Hedge's g (g), and var(g) (var.g) to be defined above. It uses "Experiment", "Level_C", "N_C", and "N_X" columns.
+This code produces a variance-covariance of sampling errors matrix, n x n, with n = number of effect sizes.  It requires the dataset (dat), Hedge's g (g), and var(g) (var.g) to be defined above. It uses "Experiment", "Level_C", "Trait", "N_C", and "N_X" columns.
 ```{r}
 varcovmat = matrix(0, nrow=dim(dat)[1], ncol=dim(dat)[1])
 
 for(i in 1:dim(dat)[1]){
   for(j in 1:dim(dat)[1]){
     if(i == j){varcovmat[i,j] = dat$var.g[i]}else{
-      if(dat[i, "Experiment"] == dat[j, "Experiment"] & dat[i, "Level_C"] == dat[j, "Level_C"]){
+      if(dat[i, "Experiment"] == dat[j, "Experiment"] & dat[i, "Level_C"] == dat[j, "Level_C"] & dat[i, "Trait"] == dat[j, "Trait"]){
         varcovmat[i,j] = 1/dat[i,"N_C"] + dat$g[i]*dat$g[j]/(dat[i,"N_C"] + dat[j,"N_C"] + dat[j,"N_X"]) 
       }
     }
