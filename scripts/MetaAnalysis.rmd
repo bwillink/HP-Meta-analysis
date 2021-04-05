@@ -46,9 +46,12 @@ dat[7,]
 ## Calculate OR and approximate variance from contingency tables
 ```{r OR}
 for (i in 1:N) {
-  # variance cannot be estimated if all individuals in a category are 0
+  # no correction need if none of the categories are 0
   if (dat$Variation.Type[i] == "OR" &
-      dat$Success_C[i] > 0 & dat$Success_X[i] > 0 & (dat$N_C[i] - dat$Success_C[i]) > 0 & (dat$N_X[i] - dat$Success_X[i]) > 0) {
+      dat$Success_C[i] > 0 &
+      dat$Success_X[i] > 0 &
+      (dat$N_C[i] - dat$Success_C[i]) > 0 &
+      (dat$N_X[i] - dat$Success_X[i]) > 0) {
     dat$OR[i] <-
       (dat$Success_X[i] * (dat$N_C[i] - dat$Success_C[i])) / (dat$Success_C[i] * (dat$N_X[i] - dat$Success_X[i]))
     dat$Log.OR[i] <- log(dat$OR[i])
@@ -57,10 +60,25 @@ for (i in 1:N) {
       1 / dat$Success_X[i] + 1 / (dat$N_X[i] - dat$Success_X[i]) + 1 / dat$Success_C[i] + 1 / (dat$N_C[i] - dat$Success_C[i])
   }
   else {
-    # if there is no appropiate data, make these columns NA
-    dat$OR[i] <- NA
-    dat$Log.OR[i] <- NA
-    dat$Log.OR.v[i] <- NA
+    # if at leas one category is 0, we apply Yate's correction to avoid dividing by 0
+    if (dat$Variation.Type[i] == "OR" &
+        (dat$Success_C[i] == 0 |
+        dat$Success_X[i] == 0 |
+        (dat$N_C[i] - dat$Success_C[i]) == 0 |
+        (dat$N_X[i] - dat$Success_X[i]) == 0)) {
+      dat$OR[i] <-
+        ((dat$Success_X[i] + 0.5) * (dat$N_C[i] - dat$Success_C[i] + 0.5)) / ((dat$Success_C[i] + 0.5) * (dat$N_X[i] - dat$Success_X[i] + 0.5))
+      dat$Log.OR[i] <- log(dat$OR[i])
+      # approximate variance
+      dat$Log.OR.v[i] <-
+        1 / (dat$Success_X[i] + 0.5)  + 1 / (dat$N_X[i] - dat$Success_X[i] + 0.5) + 1 / (dat$Success_C[i] + 0.5) + 1 / (dat$N_C[i] - dat$Success_C[i] + 0.5)
+    }
+    else{
+      # if there is no OR data, make these columns NA
+      dat$OR[i] <- NA
+      dat$Log.OR[i] <- NA
+      dat$Log.OR.v[i] <- NA
+    }
   }
 }
 
