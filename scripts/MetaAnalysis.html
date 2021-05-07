@@ -376,11 +376,11 @@ div.tocify {
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>dat<span class="sc">$</span>Gradient.category <span class="ot">&lt;-</span> <span class="fu">gsub</span>(<span class="at">pattern =</span> <span class="st">&quot;Toxin&quot;</span>, <span class="at">replacement =</span> <span class="st">&quot;Pollution&quot;</span>, <span class="at">x =</span> dat<span class="sc">$</span>Gradient.category)</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># exclude ambiguous/equivocal categories</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> dat[<span class="fu">which</span>(dat<span class="sc">$</span>Gradient.category <span class="sc">!=</span> <span class="st">&quot;Ecological? Environmental?&quot;</span>),]</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> dat[<span class="fu">which</span>(dat<span class="sc">$</span>Gradient.category <span class="sc">!=</span> <span class="st">&quot;Ecological&quot;</span>),]</span>
 <span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Check gradient categories </span></span>
 <span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="fu">levels</span>(<span class="fu">as.factor</span>(dat<span class="sc">$</span>Gradient.category))</span></code></pre></div>
-<pre><code>## [1] &quot;Ecological&quot;  &quot;Environment&quot; &quot;Pollution&quot;   &quot;Resource&quot;</code></pre>
+<pre><code>## [1] &quot;Environment&quot; &quot;Pollution&quot;   &quot;Resource&quot;</code></pre>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># store sample size in an object</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>N <span class="ot">&lt;-</span> <span class="fu">nrow</span>(dat)</span></code></pre></div>
 </div>
@@ -689,10 +689,10 @@ Question_2
 Number of effects
 </td>
 <td style="text-align:right;">
-277
+271
 </td>
 <td style="text-align:right;">
-512
+507
 </td>
 </tr>
 <tr>
@@ -700,10 +700,10 @@ Number of effects
 Number of experiments
 </td>
 <td style="text-align:right;">
-59
+58
 </td>
 <td style="text-align:right;">
-85
+84
 </td>
 </tr>
 <tr>
@@ -711,10 +711,10 @@ Number of experiments
 Number of arthropod species
 </td>
 <td style="text-align:right;">
-14
+13
 </td>
 <td style="text-align:right;">
-17
+16
 </td>
 </tr>
 <tr>
@@ -832,10 +832,10 @@ Number of fungal taxa
 Number of protozan taxa
 </td>
 <td style="text-align:right;">
-4
+3
 </td>
 <td style="text-align:right;">
-7
+6
 </td>
 </tr>
 <tr>
@@ -890,7 +890,7 @@ Number of resistance effects
 0
 </td>
 <td style="text-align:right;">
-273
+271
 </td>
 </tr>
 <tr>
@@ -901,7 +901,7 @@ Number of prevalence effects
 0
 </td>
 <td style="text-align:right;">
-67
+66
 </td>
 </tr>
 <tr>
@@ -912,7 +912,7 @@ Number of intensity effects
 0
 </td>
 <td style="text-align:right;">
-206
+205
 </td>
 </tr>
 <tr>
@@ -920,10 +920,10 @@ Number of intensity effects
 Number of tolerance effects
 </td>
 <td style="text-align:right;">
-277
+271
 </td>
 <td style="text-align:right;">
-239
+236
 </td>
 </tr>
 <tr>
@@ -931,10 +931,10 @@ Number of tolerance effects
 Number of survival effects
 </td>
 <td style="text-align:right;">
-233
+231
 </td>
 <td style="text-align:right;">
-204
+203
 </td>
 </tr>
 <tr>
@@ -942,10 +942,10 @@ Number of survival effects
 Number of fecundity effects
 </td>
 <td style="text-align:right;">
-44
+40
 </td>
 <td style="text-align:right;">
-35
+33
 </td>
 </tr>
 </tbody>
@@ -970,22 +970,22 @@ Number of fecundity effects
 ## appears to be not positive definite.</code></pre>
 <div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(Q1m1)</span></code></pre></div>
 <pre><code>## 
-## Multivariate Meta-Analysis Model (k = 277; method: REML)
+## Multivariate Meta-Analysis Model (k = 271; method: REML)
 ## 
 ##    logLik   Deviance        AIC        BIC       AICc 
-## -362.8476   725.6951   733.6951   748.1767   733.8427   
+## -358.8645   717.7290   725.7290   740.1227   725.8799   
 ## 
 ## Variance Components:
 ## 
 ##             estim    sqrt  nlvls  fixed      factor 
-## sigma^2.1  0.3257  0.5707    277     no          ID 
-## sigma^2.2  0.0000  0.0000     59     no  Experiment 
-## sigma^2.3  0.1055  0.3248     36     no    Parasite 
+## sigma^2.1  0.3435  0.5861    271     no          ID 
+## sigma^2.2  0.0000  0.0000     58     no  Experiment 
+## sigma^2.3  0.0989  0.3144     35     no    Parasite 
 ## 
 ## Model Results:
 ## 
 ## estimate      se    zval    pval   ci.lb   ci.ub 
-##   0.7310  0.0864  8.4568  &lt;.0001  0.5616  0.9004  *** 
+##   0.7578  0.0877  8.6433  &lt;.0001  0.5860  0.9297  *** 
 ## 
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
@@ -1006,29 +1006,29 @@ Number of fecundity effects
 ## | : &#39;V&#39; appears to be not positive definite.</code></pre>
 <div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(Q1m2)</span></code></pre></div>
 <pre><code>## 
-## Multivariate Meta-Analysis Model (k = 277; method: REML)
+## Multivariate Meta-Analysis Model (k = 271; method: REML)
 ## 
 ##    logLik   Deviance        AIC        BIC       AICc 
-## -362.0919   724.1839   734.1839   752.2678   734.4069   
+## -358.0814   716.1628   726.1628   744.1364   726.3909   
 ## 
 ## Variance Components:
 ## 
 ##             estim    sqrt  nlvls  fixed      factor 
-## sigma^2.1  0.3279  0.5726    277     no          ID 
-## sigma^2.2  0.0000  0.0000     59     no  Experiment 
-## sigma^2.3  0.1058  0.3252     36     no    Parasite 
+## sigma^2.1  0.3456  0.5879    271     no          ID 
+## sigma^2.2  0.0000  0.0000     58     no  Experiment 
+## sigma^2.3  0.0991  0.3148     35     no    Parasite 
 ## 
 ## Test of Moderators (coefficients 1:2):
-## QM(df = 2) = 71.3694, p-val &lt; .0001
+## QM(df = 2) = 74.5700, p-val &lt; .0001
 ## 
 ## Model Results:
 ## 
 ##                                       estimate      se    zval    pval   ci.lb 
-## Trait.categoryInfected demographic      0.7310  0.0966  7.5637  &lt;.0001  0.5416 
-## Trait.categoryUninfected demographic    0.7321  0.1051  6.9682  &lt;.0001  0.5261 
+## Trait.categoryInfected demographic      0.7551  0.0983  7.6805  &lt;.0001  0.5624 
+## Trait.categoryUninfected demographic    0.7626  0.1075  7.0954  &lt;.0001  0.5519 
 ##                                        ci.ub 
-## Trait.categoryInfected demographic    0.9204  *** 
-## Trait.categoryUninfected demographic  0.9380  *** 
+## Trait.categoryInfected demographic    0.9478  *** 
+## Trait.categoryUninfected demographic  0.9732  *** 
 ## 
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
@@ -1047,77 +1047,65 @@ Number of fecundity effects
 ## varcovmat_1, : &#39;V&#39; appears to be not positive definite.</code></pre>
 <div class="sourceCode" id="cb32"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(Q1m3)</span></code></pre></div>
 <pre><code>## 
-## Multivariate Meta-Analysis Model (k = 277; method: REML)
+## Multivariate Meta-Analysis Model (k = 271; method: REML)
 ## 
 ##    logLik   Deviance        AIC        BIC       AICc 
-## -356.2446   712.4893   734.4893   774.0311   735.5165   
+## -354.4124   708.8249   726.8249   759.0424   727.5307   
 ## 
 ## Variance Components:
 ## 
 ##             estim    sqrt  nlvls  fixed      factor 
-## sigma^2.1  0.3380  0.5814    277     no          ID 
-## sigma^2.2  0.0000  0.0000     59     no  Experiment 
-## sigma^2.3  0.1074  0.3278     36     no    Parasite 
+## sigma^2.1  0.3524  0.5936    271     no          ID 
+## sigma^2.2  0.0000  0.0000     58     no  Experiment 
+## sigma^2.3  0.1075  0.3279     35     no    Parasite 
 ## 
-## Test of Moderators (coefficients 1:8):
-## QM(df = 8) = 73.1866, p-val &lt; .0001
+## Test of Moderators (coefficients 1:6):
+## QM(df = 6) = 72.4161, p-val &lt; .0001
 ## 
 ## Model Results:
 ## 
 ##                                                                    estimate 
-## Trait.categoryInfected demographic:Gradient.categoryEcological       0.2705 
-## Trait.categoryUninfected demographic:Gradient.categoryEcological     0.1688 
-## Trait.categoryInfected demographic:Gradient.categoryEnvironment      0.7536 
-## Trait.categoryUninfected demographic:Gradient.categoryEnvironment    0.7200 
-## Trait.categoryInfected demographic:Gradient.categoryPollution        0.7269 
-## Trait.categoryUninfected demographic:Gradient.categoryPollution      0.7792 
-## Trait.categoryInfected demographic:Gradient.categoryResource         0.8146 
-## Trait.categoryUninfected demographic:Gradient.categoryResource       0.9310 
+## Trait.categoryInfected demographic:Gradient.categoryEnvironment      0.7568 
+## Trait.categoryUninfected demographic:Gradient.categoryEnvironment    0.7216 
+## Trait.categoryInfected demographic:Gradient.categoryPollution        0.7301 
+## Trait.categoryUninfected demographic:Gradient.categoryPollution      0.7815 
+## Trait.categoryInfected demographic:Gradient.categoryResource         0.8153 
+## Trait.categoryUninfected demographic:Gradient.categoryResource       0.9330 
 ##                                                                        se 
-## Trait.categoryInfected demographic:Gradient.categoryEcological     0.4813 
-## Trait.categoryUninfected demographic:Gradient.categoryEcological   0.4819 
-## Trait.categoryInfected demographic:Gradient.categoryEnvironment    0.1126 
-## Trait.categoryUninfected demographic:Gradient.categoryEnvironment  0.1263 
-## Trait.categoryInfected demographic:Gradient.categoryPollution      0.1844 
-## Trait.categoryUninfected demographic:Gradient.categoryPollution    0.1971 
-## Trait.categoryInfected demographic:Gradient.categoryResource       0.1817 
-## Trait.categoryUninfected demographic:Gradient.categoryResource     0.2211 
+## Trait.categoryInfected demographic:Gradient.categoryEnvironment    0.1135 
+## Trait.categoryUninfected demographic:Gradient.categoryEnvironment  0.1273 
+## Trait.categoryInfected demographic:Gradient.categoryPollution      0.1863 
+## Trait.categoryUninfected demographic:Gradient.categoryPollution    0.1989 
+## Trait.categoryInfected demographic:Gradient.categoryResource       0.1838 
+## Trait.categoryUninfected demographic:Gradient.categoryResource     0.2236 
 ##                                                                      zval 
-## Trait.categoryInfected demographic:Gradient.categoryEcological     0.5619 
-## Trait.categoryUninfected demographic:Gradient.categoryEcological   0.3503 
-## Trait.categoryInfected demographic:Gradient.categoryEnvironment    6.6954 
-## Trait.categoryUninfected demographic:Gradient.categoryEnvironment  5.7022 
-## Trait.categoryInfected demographic:Gradient.categoryPollution      3.9426 
-## Trait.categoryUninfected demographic:Gradient.categoryPollution    3.9533 
-## Trait.categoryInfected demographic:Gradient.categoryResource       4.4836 
-## Trait.categoryUninfected demographic:Gradient.categoryResource     4.2105 
+## Trait.categoryInfected demographic:Gradient.categoryEnvironment    6.6670 
+## Trait.categoryUninfected demographic:Gradient.categoryEnvironment  5.6682 
+## Trait.categoryInfected demographic:Gradient.categoryPollution      3.9181 
+## Trait.categoryUninfected demographic:Gradient.categoryPollution    3.9292 
+## Trait.categoryInfected demographic:Gradient.categoryResource       4.4362 
+## Trait.categoryUninfected demographic:Gradient.categoryResource     4.1735 
 ##                                                                      pval 
-## Trait.categoryInfected demographic:Gradient.categoryEcological     0.5742 
-## Trait.categoryUninfected demographic:Gradient.categoryEcological   0.7261 
 ## Trait.categoryInfected demographic:Gradient.categoryEnvironment    &lt;.0001 
 ## Trait.categoryUninfected demographic:Gradient.categoryEnvironment  &lt;.0001 
 ## Trait.categoryInfected demographic:Gradient.categoryPollution      &lt;.0001 
 ## Trait.categoryUninfected demographic:Gradient.categoryPollution    &lt;.0001 
 ## Trait.categoryInfected demographic:Gradient.categoryResource       &lt;.0001 
 ## Trait.categoryUninfected demographic:Gradient.categoryResource     &lt;.0001 
-##                                                                      ci.lb 
-## Trait.categoryInfected demographic:Gradient.categoryEcological     -0.6729 
-## Trait.categoryUninfected demographic:Gradient.categoryEcological   -0.7757 
-## Trait.categoryInfected demographic:Gradient.categoryEnvironment     0.5330 
-## Trait.categoryUninfected demographic:Gradient.categoryEnvironment   0.4725 
-## Trait.categoryInfected demographic:Gradient.categoryPollution       0.3656 
-## Trait.categoryUninfected demographic:Gradient.categoryPollution     0.3929 
-## Trait.categoryInfected demographic:Gradient.categoryResource        0.4585 
-## Trait.categoryUninfected demographic:Gradient.categoryResource      0.4976 
+##                                                                     ci.lb 
+## Trait.categoryInfected demographic:Gradient.categoryEnvironment    0.5343 
+## Trait.categoryUninfected demographic:Gradient.categoryEnvironment  0.4721 
+## Trait.categoryInfected demographic:Gradient.categoryPollution      0.3649 
+## Trait.categoryUninfected demographic:Gradient.categoryPollution    0.3917 
+## Trait.categoryInfected demographic:Gradient.categoryResource       0.4551 
+## Trait.categoryUninfected demographic:Gradient.categoryResource     0.4948 
 ##                                                                     ci.ub 
-## Trait.categoryInfected demographic:Gradient.categoryEcological     1.2139      
-## Trait.categoryUninfected demographic:Gradient.categoryEcological   1.1134      
-## Trait.categoryInfected demographic:Gradient.categoryEnvironment    0.9742  *** 
-## Trait.categoryUninfected demographic:Gradient.categoryEnvironment  0.9675  *** 
-## Trait.categoryInfected demographic:Gradient.categoryPollution      1.0883  *** 
-## Trait.categoryUninfected demographic:Gradient.categoryPollution    1.1655  *** 
-## Trait.categoryInfected demographic:Gradient.categoryResource       1.1707  *** 
-## Trait.categoryUninfected demographic:Gradient.categoryResource     1.3644  *** 
+## Trait.categoryInfected demographic:Gradient.categoryEnvironment    0.9793  *** 
+## Trait.categoryUninfected demographic:Gradient.categoryEnvironment  0.9711  *** 
+## Trait.categoryInfected demographic:Gradient.categoryPollution      1.0953  *** 
+## Trait.categoryUninfected demographic:Gradient.categoryPollution    1.1713  *** 
+## Trait.categoryInfected demographic:Gradient.categoryResource       1.1755  *** 
+## Trait.categoryUninfected demographic:Gradient.categoryResource     1.3711  *** 
 ## 
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
@@ -1137,67 +1125,50 @@ Number of fecundity effects
 ## appears to be not positive definite.</code></pre>
 <div class="sourceCode" id="cb36"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(Q1m4)</span></code></pre></div>
 <pre><code>## 
-## Multivariate Meta-Analysis Model (k = 277; method: REML)
+## Multivariate Meta-Analysis Model (k = 271; method: REML)
 ## 
 ##    logLik   Deviance        AIC        BIC       AICc 
-## -348.1361   696.2723   722.2723   768.9065   723.7110   
+## -347.3338   694.6675   716.6675   755.9612   717.7193   
 ## 
 ## Variance Components:
 ## 
 ##             estim    sqrt  nlvls  fixed      factor 
-## sigma^2.1  0.3188  0.5646    277     no          ID 
-## sigma^2.2  0.0000  0.0000     59     no  Experiment 
-## sigma^2.3  0.1370  0.3701     36     no    Parasite 
+## sigma^2.1  0.3354  0.5791    271     no          ID 
+## sigma^2.2  0.0000  0.0000     58     no  Experiment 
+## sigma^2.3  0.1291  0.3594     35     no    Parasite 
 ## 
-## Test of Moderators (coefficients 1:10):
-## QM(df = 10) = 73.8492, p-val &lt; .0001
+## Test of Moderators (coefficients 1:8):
+## QM(df = 8) = 74.6975, p-val &lt; .0001
 ## 
 ## Model Results:
 ## 
-##                                                             estimate      se 
-## Trait.categoryInfected demographic:Host.typeAmphibian         1.1928  0.2257 
-## Trait.categoryUninfected demographic:Host.typeAmphibian       0.7837  0.2526 
-## Trait.categoryInfected demographic:Host.typeArthropod         0.5894  0.1486 
-## Trait.categoryUninfected demographic:Host.typeArthropod       0.7497  0.1517 
-## Trait.categoryInfected demographic:Host.typeFish              1.0110  0.3572 
-## Trait.categoryUninfected demographic:Host.typeFish            0.5765  0.3543 
-## Trait.categoryInfected demographic:Host.typeInvertebrate      1.3242  0.5740 
-## Trait.categoryUninfected demographic:Host.typeInvertebrate    0.8492  0.5023 
-## Trait.categoryInfected demographic:Host.typeMollusc           0.4986  0.2137 
-## Trait.categoryUninfected demographic:Host.typeMollusc         0.7428  0.2879 
-##                                                               zval    pval 
-## Trait.categoryInfected demographic:Host.typeAmphibian       5.2860  &lt;.0001 
-## Trait.categoryUninfected demographic:Host.typeAmphibian     3.1028  0.0019 
-## Trait.categoryInfected demographic:Host.typeArthropod       3.9649  &lt;.0001 
-## Trait.categoryUninfected demographic:Host.typeArthropod     4.9420  &lt;.0001 
-## Trait.categoryInfected demographic:Host.typeFish            2.8301  0.0047 
-## Trait.categoryUninfected demographic:Host.typeFish          1.6270  0.1037 
-## Trait.categoryInfected demographic:Host.typeInvertebrate    2.3070  0.0211 
-## Trait.categoryUninfected demographic:Host.typeInvertebrate  1.6906  0.0909 
-## Trait.categoryInfected demographic:Host.typeMollusc         2.3327  0.0197 
-## Trait.categoryUninfected demographic:Host.typeMollusc       2.5796  0.0099 
-##                                                               ci.lb   ci.ub 
-## Trait.categoryInfected demographic:Host.typeAmphibian        0.7505  1.6351 
-## Trait.categoryUninfected demographic:Host.typeAmphibian      0.2887  1.2787 
-## Trait.categoryInfected demographic:Host.typeArthropod        0.2980  0.8807 
-## Trait.categoryUninfected demographic:Host.typeArthropod      0.4524  1.0470 
-## Trait.categoryInfected demographic:Host.typeFish             0.3108  1.7111 
-## Trait.categoryUninfected demographic:Host.typeFish          -0.1180  1.2710 
-## Trait.categoryInfected demographic:Host.typeInvertebrate     0.1992  2.4492 
-## Trait.categoryUninfected demographic:Host.typeInvertebrate  -0.1353  1.8338 
-## Trait.categoryInfected demographic:Host.typeMollusc          0.0797  0.9175 
-## Trait.categoryUninfected demographic:Host.typeMollusc        0.1784  1.3071 
-##  
-## Trait.categoryInfected demographic:Host.typeAmphibian       *** 
-## Trait.categoryUninfected demographic:Host.typeAmphibian      ** 
-## Trait.categoryInfected demographic:Host.typeArthropod       *** 
-## Trait.categoryUninfected demographic:Host.typeArthropod     *** 
-## Trait.categoryInfected demographic:Host.typeFish             ** 
-## Trait.categoryUninfected demographic:Host.typeFish 
-## Trait.categoryInfected demographic:Host.typeInvertebrate      * 
-## Trait.categoryUninfected demographic:Host.typeInvertebrate    . 
-## Trait.categoryInfected demographic:Host.typeMollusc           * 
-## Trait.categoryUninfected demographic:Host.typeMollusc        ** 
+##                                                          estimate      se 
+## Trait.categoryInfected demographic:Host.typeAmphibian      1.1862  0.2239 
+## Trait.categoryUninfected demographic:Host.typeAmphibian    0.7772  0.2512 
+## Trait.categoryInfected demographic:Host.typeArthropod      0.6495  0.1538 
+## Trait.categoryUninfected demographic:Host.typeArthropod    0.8111  0.1572 
+## Trait.categoryInfected demographic:Host.typeFish           1.0085  0.3572 
+## Trait.categoryUninfected demographic:Host.typeFish         0.5747  0.3541 
+## Trait.categoryInfected demographic:Host.typeMollusc        0.4990  0.2139 
+## Trait.categoryUninfected demographic:Host.typeMollusc      0.7418  0.2885 
+##                                                            zval    pval 
+## Trait.categoryInfected demographic:Host.typeAmphibian    5.2978  &lt;.0001 
+## Trait.categoryUninfected demographic:Host.typeAmphibian  3.0938  0.0020 
+## Trait.categoryInfected demographic:Host.typeArthropod    4.2233  &lt;.0001 
+## Trait.categoryUninfected demographic:Host.typeArthropod  5.1589  &lt;.0001 
+## Trait.categoryInfected demographic:Host.typeFish         2.8235  0.0048 
+## Trait.categoryUninfected demographic:Host.typeFish       1.6232  0.1046 
+## Trait.categoryInfected demographic:Host.typeMollusc      2.3323  0.0197 
+## Trait.categoryUninfected demographic:Host.typeMollusc    2.5712  0.0101 
+##                                                            ci.lb   ci.ub 
+## Trait.categoryInfected demographic:Host.typeAmphibian     0.7474  1.6251  *** 
+## Trait.categoryUninfected demographic:Host.typeAmphibian   0.2848  1.2696   ** 
+## Trait.categoryInfected demographic:Host.typeArthropod     0.3481  0.9510  *** 
+## Trait.categoryUninfected demographic:Host.typeArthropod   0.5030  1.1193  *** 
+## Trait.categoryInfected demographic:Host.typeFish          0.3084  1.7086   ** 
+## Trait.categoryUninfected demographic:Host.typeFish       -0.1193  1.2686      
+## Trait.categoryInfected demographic:Host.typeMollusc       0.0797  0.9183    * 
+## Trait.categoryUninfected demographic:Host.typeMollusc     0.1763  1.3073    * 
 ## 
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
@@ -1223,22 +1194,22 @@ Number of fecundity effects
 ## to obtain stable results.</code></pre>
 <div class="sourceCode" id="cb41"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(Q2m1)</span></code></pre></div>
 <pre><code>## 
-## Multivariate Meta-Analysis Model (k = 512; method: REML)
+## Multivariate Meta-Analysis Model (k = 507; method: REML)
 ## 
 ##    logLik   Deviance        AIC        BIC       AICc 
-## -643.2397  1286.4795  1294.4795  1311.4249  1294.5585   
+## -640.6078  1281.2156  1289.2156  1306.1217  1289.2954   
 ## 
 ## Variance Components:
 ## 
 ##             estim    sqrt  nlvls  fixed      factor 
-## sigma^2.1  0.1825  0.4272    512     no          ID 
-## sigma^2.2  0.1373  0.3705     85     no  Experiment 
-## sigma^2.3  0.1334  0.3652     59     no    Parasite 
+## sigma^2.1  0.1853  0.4304    507     no          ID 
+## sigma^2.2  0.1351  0.3676     84     no  Experiment 
+## sigma^2.3  0.1326  0.3642     58     no    Parasite 
 ## 
 ## Model Results:
 ## 
 ## estimate      se     zval    pval   ci.lb   ci.ub 
-##   0.8704  0.0796  10.9376  &lt;.0001  0.7144  1.0264  *** 
+##   0.8846  0.0802  11.0347  &lt;.0001  0.7275  1.0417  *** 
 ## 
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
@@ -1262,29 +1233,29 @@ Number of fecundity effects
 ## able to obtain stable results.</code></pre>
 <div class="sourceCode" id="cb46"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(Q2m2)</span></code></pre></div>
 <pre><code>## 
-## Multivariate Meta-Analysis Model (k = 512; method: REML)
+## Multivariate Meta-Analysis Model (k = 507; method: REML)
 ## 
 ##    logLik   Deviance        AIC        BIC       AICc 
-## -642.6531  1285.3063  1295.3063  1316.4783  1295.4253   
+## -640.0108  1280.0215  1290.0215  1311.1443  1290.1418   
 ## 
 ## Variance Components:
 ## 
 ##             estim    sqrt  nlvls  fixed      factor 
-## sigma^2.1  0.1829  0.4276    512     no          ID 
-## sigma^2.2  0.1374  0.3707     85     no  Experiment 
-## sigma^2.3  0.1332  0.3650     59     no    Parasite 
+## sigma^2.1  0.1857  0.4309    507     no          ID 
+## sigma^2.2  0.1351  0.3676     84     no  Experiment 
+## sigma^2.3  0.1325  0.3640     58     no    Parasite 
 ## 
 ## Test of Moderators (coefficients 1:2):
-## QM(df = 2) = 119.6377, p-val &lt; .0001
+## QM(df = 2) = 121.7848, p-val &lt; .0001
 ## 
 ## Model Results:
 ## 
 ##                                     estimate      se     zval    pval   ci.lb 
-## Trait.categoryEpidemiological         0.8699  0.0848  10.2607  &lt;.0001  0.7037 
-## Trait.categoryInfected demographic    0.8711  0.0867  10.0517  &lt;.0001  0.7013 
+## Trait.categoryEpidemiological         0.8854  0.0854  10.3641  &lt;.0001  0.7179 
+## Trait.categoryInfected demographic    0.8838  0.0875  10.1037  &lt;.0001  0.7124 
 ##                                      ci.ub 
-## Trait.categoryEpidemiological       1.0361  *** 
-## Trait.categoryInfected demographic  1.0410  *** 
+## Trait.categoryEpidemiological       1.0528  *** 
+## Trait.categoryInfected demographic  1.0552  *** 
 ## 
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
@@ -1306,77 +1277,58 @@ Number of fecundity effects
 ## May not be able to obtain stable results.</code></pre>
 <div class="sourceCode" id="cb51"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(Q2m3)</span></code></pre></div>
 <pre><code>## 
-## Multivariate Meta-Analysis Model (k = 512; method: REML)
+## Multivariate Meta-Analysis Model (k = 507; method: REML)
 ## 
 ##    logLik   Deviance        AIC        BIC       AICc 
-## -635.5399  1271.0799  1293.0799  1339.5282  1293.6165   
+## -634.9708  1269.9416  1287.9416  1325.8911  1288.3082   
 ## 
 ## Variance Components:
 ## 
 ##             estim    sqrt  nlvls  fixed      factor 
-## sigma^2.1  0.1864  0.4317    512     no          ID 
-## sigma^2.2  0.1268  0.3561     85     no  Experiment 
-## sigma^2.3  0.1046  0.3234     59     no    Parasite 
+## sigma^2.1  0.1887  0.4344    507     no          ID 
+## sigma^2.2  0.1268  0.3561     84     no  Experiment 
+## sigma^2.3  0.1026  0.3202     58     no    Parasite 
 ## 
-## Test of Moderators (coefficients 1:8):
-## QM(df = 8) = 138.3145, p-val &lt; .0001
+## Test of Moderators (coefficients 1:6):
+## QM(df = 6) = 138.8484, p-val &lt; .0001
 ## 
 ## Model Results:
 ## 
 ##                                                                  estimate 
-## Trait.categoryEpidemiological:Gradient.categoryEcological          0.1079 
-## Trait.categoryInfected demographic:Gradient.categoryEcological     0.2689 
-## Trait.categoryEpidemiological:Gradient.categoryEnvironment         0.9728 
-## Trait.categoryInfected demographic:Gradient.categoryEnvironment    0.9060 
-## Trait.categoryEpidemiological:Gradient.categoryPollution           0.6772 
-## Trait.categoryInfected demographic:Gradient.categoryPollution      0.7547 
-## Trait.categoryEpidemiological:Gradient.categoryResource            0.8452 
-## Trait.categoryInfected demographic:Gradient.categoryResource       0.9080 
+## Trait.categoryEpidemiological:Gradient.categoryEnvironment         0.9730 
+## Trait.categoryInfected demographic:Gradient.categoryEnvironment    0.9063 
+## Trait.categoryEpidemiological:Gradient.categoryPollution           0.6760 
+## Trait.categoryInfected demographic:Gradient.categoryPollution      0.7537 
+## Trait.categoryEpidemiological:Gradient.categoryResource            0.8447 
+## Trait.categoryInfected demographic:Gradient.categoryResource       0.9074 
 ##                                                                      se 
-## Trait.categoryEpidemiological:Gradient.categoryEcological        0.5761 
-## Trait.categoryInfected demographic:Gradient.categoryEcological   0.5523 
-## Trait.categoryEpidemiological:Gradient.categoryEnvironment       0.0958 
-## Trait.categoryInfected demographic:Gradient.categoryEnvironment  0.0992 
-## Trait.categoryEpidemiological:Gradient.categoryPollution         0.1352 
-## Trait.categoryInfected demographic:Gradient.categoryPollution    0.1379 
-## Trait.categoryEpidemiological:Gradient.categoryResource          0.1584 
-## Trait.categoryInfected demographic:Gradient.categoryResource     0.1514 
+## Trait.categoryEpidemiological:Gradient.categoryEnvironment       0.0957 
+## Trait.categoryInfected demographic:Gradient.categoryEnvironment  0.0991 
+## Trait.categoryEpidemiological:Gradient.categoryPollution         0.1350 
+## Trait.categoryInfected demographic:Gradient.categoryPollution    0.1378 
+## Trait.categoryEpidemiological:Gradient.categoryResource          0.1586 
+## Trait.categoryInfected demographic:Gradient.categoryResource     0.1516 
 ##                                                                     zval 
-## Trait.categoryEpidemiological:Gradient.categoryEcological         0.1873 
-## Trait.categoryInfected demographic:Gradient.categoryEcological    0.4868 
-## Trait.categoryEpidemiological:Gradient.categoryEnvironment       10.1512 
-## Trait.categoryInfected demographic:Gradient.categoryEnvironment   9.1321 
-## Trait.categoryEpidemiological:Gradient.categoryPollution          5.0104 
-## Trait.categoryInfected demographic:Gradient.categoryPollution     5.4716 
-## Trait.categoryEpidemiological:Gradient.categoryResource           5.3344 
-## Trait.categoryInfected demographic:Gradient.categoryResource      5.9974 
-##                                                                    pval 
-## Trait.categoryEpidemiological:Gradient.categoryEcological        0.8514 
-## Trait.categoryInfected demographic:Gradient.categoryEcological   0.6264 
-## Trait.categoryEpidemiological:Gradient.categoryEnvironment       &lt;.0001 
-## Trait.categoryInfected demographic:Gradient.categoryEnvironment  &lt;.0001 
-## Trait.categoryEpidemiological:Gradient.categoryPollution         &lt;.0001 
-## Trait.categoryInfected demographic:Gradient.categoryPollution    &lt;.0001 
-## Trait.categoryEpidemiological:Gradient.categoryResource          &lt;.0001 
-## Trait.categoryInfected demographic:Gradient.categoryResource     &lt;.0001 
-##                                                                    ci.lb 
-## Trait.categoryEpidemiological:Gradient.categoryEcological        -1.0213 
-## Trait.categoryInfected demographic:Gradient.categoryEcological   -0.8137 
-## Trait.categoryEpidemiological:Gradient.categoryEnvironment        0.7850 
-## Trait.categoryInfected demographic:Gradient.categoryEnvironment   0.7115 
-## Trait.categoryEpidemiological:Gradient.categoryPollution          0.4123 
-## Trait.categoryInfected demographic:Gradient.categoryPollution     0.4843 
-## Trait.categoryEpidemiological:Gradient.categoryResource           0.5347 
-## Trait.categoryInfected demographic:Gradient.categoryResource      0.6112 
+## Trait.categoryEpidemiological:Gradient.categoryEnvironment       10.1683 
+## Trait.categoryInfected demographic:Gradient.categoryEnvironment   9.1449 
+## Trait.categoryEpidemiological:Gradient.categoryPollution          5.0085 
+## Trait.categoryInfected demographic:Gradient.categoryPollution     5.4703 
+## Trait.categoryEpidemiological:Gradient.categoryResource           5.3246 
+## Trait.categoryInfected demographic:Gradient.categoryResource      5.9859 
+##                                                                    pval   ci.lb 
+## Trait.categoryEpidemiological:Gradient.categoryEnvironment       &lt;.0001  0.7854 
+## Trait.categoryInfected demographic:Gradient.categoryEnvironment  &lt;.0001  0.7120 
+## Trait.categoryEpidemiological:Gradient.categoryPollution         &lt;.0001  0.4114 
+## Trait.categoryInfected demographic:Gradient.categoryPollution    &lt;.0001  0.4836 
+## Trait.categoryEpidemiological:Gradient.categoryResource          &lt;.0001  0.5338 
+## Trait.categoryInfected demographic:Gradient.categoryResource     &lt;.0001  0.6103 
 ##                                                                   ci.ub 
-## Trait.categoryEpidemiological:Gradient.categoryEcological        1.2371      
-## Trait.categoryInfected demographic:Gradient.categoryEcological   1.3514      
-## Trait.categoryEpidemiological:Gradient.categoryEnvironment       1.1606  *** 
-## Trait.categoryInfected demographic:Gradient.categoryEnvironment  1.1004  *** 
-## Trait.categoryEpidemiological:Gradient.categoryPollution         0.9420  *** 
-## Trait.categoryInfected demographic:Gradient.categoryPollution    1.0250  *** 
-## Trait.categoryEpidemiological:Gradient.categoryResource          1.1558  *** 
-## Trait.categoryInfected demographic:Gradient.categoryResource     1.2047  *** 
+## Trait.categoryEpidemiological:Gradient.categoryEnvironment       1.1605  *** 
+## Trait.categoryInfected demographic:Gradient.categoryEnvironment  1.1005  *** 
+## Trait.categoryEpidemiological:Gradient.categoryPollution         0.9405  *** 
+## Trait.categoryInfected demographic:Gradient.categoryPollution    1.0237  *** 
+## Trait.categoryEpidemiological:Gradient.categoryResource          1.1556  *** 
+## Trait.categoryInfected demographic:Gradient.categoryResource     1.2045  *** 
 ## 
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
@@ -1399,41 +1351,41 @@ Number of fecundity effects
 ## large. May not be able to obtain stable results.</code></pre>
 <div class="sourceCode" id="cb56"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(Q2m4)</span></code></pre></div>
 <pre><code>## 
-## Multivariate Meta-Analysis Model (k = 478; method: REML)
+## Multivariate Meta-Analysis Model (k = 482; method: REML)
 ## 
 ##    logLik   Deviance        AIC        BIC       AICc 
-## -597.9891  1195.9781  1217.9781  1263.6582  1218.5545   
+## -606.0022  1212.0043  1234.0043  1279.7776  1234.5758   
 ## 
 ## Variance Components:
 ## 
 ##             estim    sqrt  nlvls  fixed      factor 
-## sigma^2.1  0.1936  0.4400    478     no          ID 
-## sigma^2.2  0.0819  0.2862     81     no  Experiment 
-## sigma^2.3  0.1801  0.4244     56     no    Parasite 
+## sigma^2.1  0.1929  0.4392    482     no          ID 
+## sigma^2.2  0.0940  0.3065     81     no  Experiment 
+## sigma^2.3  0.1727  0.4156     55     no    Parasite 
 ## 
 ## Test of Moderators (coefficients 1:8):
-## QM(df = 8) = 128.5839, p-val &lt; .0001
+## QM(df = 8) = 128.3325, p-val &lt; .0001
 ## 
 ## Model Results:
 ## 
 ##                                                        estimate      se    zval 
-## Trait.categoryEpidemiological:Host.typeAmphibian         0.9527  0.1951  4.8828 
-## Trait.categoryInfected demographic:Host.typeAmphibian    0.9851  0.2018  4.8804 
-## Trait.categoryEpidemiological:Host.typeArthropod         0.6215  0.1466  4.2409 
-## Trait.categoryInfected demographic:Host.typeArthropod    0.6637  0.1474  4.5012 
-## Trait.categoryEpidemiological:Host.typeFish              1.3545  0.1715  7.8986 
-## Trait.categoryInfected demographic:Host.typeFish         1.2798  0.1914  6.6877 
-## Trait.categoryEpidemiological:Host.typeMollusc           0.7785  0.2134  3.6475 
-## Trait.categoryInfected demographic:Host.typeMollusc      0.6455  0.1989  3.2452 
+## Trait.categoryEpidemiological:Host.typeAmphibian         0.9537  0.1950  4.8916 
+## Trait.categoryInfected demographic:Host.typeAmphibian    0.9857  0.2018  4.8842 
+## Trait.categoryEpidemiological:Host.typeArthropod         0.6672  0.1509  4.4223 
+## Trait.categoryInfected demographic:Host.typeArthropod    0.7026  0.1519  4.6256 
+## Trait.categoryEpidemiological:Host.typeFish              1.3449  0.1725  7.7944 
+## Trait.categoryInfected demographic:Host.typeFish         1.2739  0.1922  6.6275 
+## Trait.categoryEpidemiological:Host.typeMollusc           0.7762  0.2145  3.6181 
+## Trait.categoryInfected demographic:Host.typeMollusc      0.6450  0.2001  3.2240 
 ##                                                          pval   ci.lb   ci.ub 
-## Trait.categoryEpidemiological:Host.typeAmphibian       &lt;.0001  0.5703  1.3351 
-## Trait.categoryInfected demographic:Host.typeAmphibian  &lt;.0001  0.5895  1.3807 
-## Trait.categoryEpidemiological:Host.typeArthropod       &lt;.0001  0.3343  0.9087 
-## Trait.categoryInfected demographic:Host.typeArthropod  &lt;.0001  0.3747  0.9527 
-## Trait.categoryEpidemiological:Host.typeFish            &lt;.0001  1.0184  1.6906 
-## Trait.categoryInfected demographic:Host.typeFish       &lt;.0001  0.9047  1.6549 
-## Trait.categoryEpidemiological:Host.typeMollusc         0.0003  0.3602  1.1968 
-## Trait.categoryInfected demographic:Host.typeMollusc    0.0012  0.2556  1.0353 
+## Trait.categoryEpidemiological:Host.typeAmphibian       &lt;.0001  0.5716  1.3358 
+## Trait.categoryInfected demographic:Host.typeAmphibian  &lt;.0001  0.5902  1.3812 
+## Trait.categoryEpidemiological:Host.typeArthropod       &lt;.0001  0.3715  0.9629 
+## Trait.categoryInfected demographic:Host.typeArthropod  &lt;.0001  0.4049  1.0002 
+## Trait.categoryEpidemiological:Host.typeFish            &lt;.0001  1.0067  1.6831 
+## Trait.categoryInfected demographic:Host.typeFish       &lt;.0001  0.8972  1.6507 
+## Trait.categoryEpidemiological:Host.typeMollusc         0.0003  0.3557  1.1967 
+## Trait.categoryInfected demographic:Host.typeMollusc    0.0013  0.2529  1.0371 
 ##  
 ## Trait.categoryEpidemiological:Host.typeAmphibian       *** 
 ## Trait.categoryInfected demographic:Host.typeAmphibian  *** 
