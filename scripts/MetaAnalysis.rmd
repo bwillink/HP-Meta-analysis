@@ -1,16 +1,22 @@
 ---
 title: "Host-Parasite Meta-analysis"
-author: "Dave Civitello, Beatriz Willink, Amanda Vicente"
-date: "3/3/2021"
-output: html_document
+author: "Amanda Vicente, Beatriz Willink, Dave Civitello"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: united
+    highlight: tango
+    number_sections: false
+    toc: true
+    toc_float: true
+    toc_depth: 4
 ---
 
-Read in data and load packages
-```{r packages, message=FALSE}
-dat <- read.csv("../data/MA_test_dat2.csv", header = T, sep = ",")
+Load packages
+```{r load-packages, message=FALSE, results='hide'}
 x <-
   c(
-    "metafor")
+    "metafor", "kableExtra")
 
 lapply(x, function(y) {
   # check if installed, if not install
@@ -20,16 +26,38 @@ lapply(x, function(y) {
   # load package
   try(require(y, character.only = T), silent = T)
 })
+```
+
+
+Read in data
+```{r read-data}
+dat <- read.csv("../data/MA_dat_07-05-2021.csv", header = T, sep = ",")
+
+# subset data that have a "variation type". We'll parse based on variation type below
+dat <- dat[-which(dat$Variation.Type == ""),]
+```
+
+# Data cleaning
+*There might be more of this coming...*
+
+## Gradient categories 
+```{r}
+# Toxin is a type of pollution
+dat$Gradient.category <- gsub(pattern = "Toxin", replacement = "Pollution", x = dat$Gradient.category)
+
+# exclude ambiguous/equivocal categories
+dat <- dat[which(dat$Gradient.category != "Ecological? Environmental?"),]
+
+# Check gradient categories 
+levels(as.factor(dat$Gradient.category))
 
 # store sample size in an object
 N <- nrow(dat)
 ```
 
-# Getting effect sizes
 
-# Standardize survival/mortality
-
-```{r survival}
+## Standardize survival/mortality
+```{r standardize-survival}
 # which studies report mortality? 
 mort <- grep(pattern = "[M,m]ort", x = dat$Trait)
 
@@ -39,9 +67,8 @@ for (i in mort) {
   dat$Success_X[i] <- dat$N_X[i] - dat$Success_X[i]
   dat$Trait[i] <- "Survival (converted)"
    }
-dat[7,]
 ```
-
+# Getting effect sizes
 
 ## Calculate OR and approximate variance from contingency tables
 ```{r OR}
@@ -60,7 +87,7 @@ for (i in 1:N) {
       1 / dat$Success_X[i] + 1 / (dat$N_X[i] - dat$Success_X[i]) + 1 / dat$Success_C[i] + 1 / (dat$N_C[i] - dat$Success_C[i])
   }
   else {
-    # if at leas one category is 0, we apply Yate's correction to avoid dividing by 0
+    # if at least one category is 0, we apply Yate's correction to avoid dividing by 0
     if (dat$Variation.Type[i] == "OR" &
         (dat$Success_C[i] == 0 |
         dat$Success_X[i] == 0 |
@@ -81,17 +108,14 @@ for (i in 1:N) {
     }
   }
 }
-
 ```
 
 
 ## Calculate SD for comparisons with continuous normally distributed variables
-** What do we do with CIs from non-normal distributions?**
 ```{r SD}
 # create SD variables
 dat$SD_C <- vector(length = N)
 dat$SD_X <- vector(length = N)
-
 
 for (i in 1:N) {
   
@@ -102,9 +126,9 @@ for (i in 1:N) {
   } else {
    
      # calculate SD if a 95% confidence interval for a normal distribution is reported
-    # this also applies to the Wald confidence interval for prorportions, as it is a normal approximation to the binomial
-    if (dat$Variation.Type[i] == "95CI" |
-        dat$Variation.Type[i] == "Confidence limit (Wald CI)") {
+    # this also applies to the Wald confidence interval for proportions, as it is a normal approximation to the binomial
+    if (dat$Variation.Type[i] == "CI" |
+        dat$Variation.Type[i] == "Wald CI") {
      
        # calculate SE from lower and upper limits
       temp_C1 <- (dat$Upr_C[i] - dat$Mean_C[i]) / 1.96
@@ -149,9 +173,9 @@ for (i in 1:N) {
     dat$var.d[i] <-
       (dat$N_C[i] + dat$N_X[i]) / (dat$N_C[i] * dat$N_X[i]) + (dat$d[i] ^ 2) /
       (2 * (dat$N_C[i] + dat$N_X[i]))
-    
-  } else{
-    # if only F statistic is reported
+  }
+  else{
+    # if only F statistic is reported - no cases of this yet!
     if (dat$Variation.Type[i] == "F_X") {
       dat$d[i] <-
         sqrt(dat$F_X[i] * (dat$N_X[i] + dat$N_C[i]) / (dat$N_C[i] * dat$N_X[i]))
@@ -160,25 +184,55 @@ for (i in 1:N) {
         (2 * (dat$N_C[i] + dat$N_X[i]))
       
     } else{
-      # converting log OR
-      if (is.na(dat$Log.OR.v[i]) == FALSE & dat$Log.OR.v[i] > 0) {
-        dat$d[i] <- dat$Log.OR[i] * (sqrt(3) / pi)
-        dat$var.d[i] <- dat$Log.OR.v[i] * 3 / pi ^ 2
-      } else {
-        # for now, leave other types of effects as NA
-        dat$d[i] <- NA
-        dat$var.d[i] <- NA
+      # if Z and N are reported for a regression analysis
+      if (dat$Variation.Type[i] == "z") {
+        r <- dat$Z_X[i] / sqrt(dat$Z_N[i])
+        dat$d[i] <- (2 * r) / (sqrt(1 - r ^ 2))
+        Vr <- (1 - r ^ 2) ^ 2 / (dat$Z_N[i] - 1)
+        dat$var.d[i] <- (4 * Vr) / (1 - r ^ 2) ^ 3
+      }
+      else{
+        # if t and N are reported for a regression analysis
+        if (dat$Variation.Type[i] == "t") {
+          r <- sqrt((dat$Z_X[i] ^ 2) / (dat$Z_X[i] ^ 2 + dat$Z_df[i]))
+          dat$d[i] <- (2 * r) / (sqrt(1 - r ^ 2))
+          Vr <- (1 - r ^ 2) ^ 2 / (dat$Z_N[i] - 1)
+          dat$var.d[i] <- (4 * Vr) / (1 - r ^ 2) ^ 3
+        }
+        else{
+          # converting log OR
+          if (is.na(dat$Log.OR.v[i]) == FALSE & dat$Log.OR.v[i] > 0) {
+            dat$d[i] <- dat$Log.OR[i] * (sqrt(3) / pi)
+            dat$var.d[i] <- dat$Log.OR.v[i] * 3 / pi ^ 2
+          } else {
+            # for now, leave other types of effects as NA
+            dat$d[i] <- NA
+            dat$var.d[i] <- NA
+          }
+        }
       }
     }
   }
 }
 ```
 
+
 ## Correct for sample size and get g
 ```{r calculate g}
 # sample size correction factor
-dat$J <- 1 - 3 / (4 * (dat$N_C + dat$N_X - 2) -1)
-
+for (i in 1:N) {
+  # if odds ratio or comparison between means
+  if (is.na(dat$N_C[i]) == F) {
+    dat$J[i] <- 1 - 3 / (4 * (dat$N_C[i] + dat$N_X[i] - 2) - 1)
+  } else {
+    # if correlation
+    if (is.na(dat$R_N[i]) == F) {
+      dat$J[i] <- 1 - 3 / (4 * (dat$R_N[i] - 2) - 1)
+    }else {
+      dat$J[i] <- NA
+    }
+  }
+}
 # corrected effect size
 dat$g <- dat$J * dat$d
 
@@ -186,48 +240,340 @@ dat$g <- dat$J * dat$d
 dat$var.g <- (dat$J ^ 2) * dat$var.d
 ```
 
-## Variance-covariance of sampling errors matrix (for multiple comparisons)
-This code produces a variance-covariance of sampling errors matrix, n x n, with n = number of effect sizes.  It requires the dataset (dat), Hedge's g (g), and var(g) (var.g) to be defined above. It uses "Experiment", "Level_C", "Trait", "N_C", and "N_X" columns.
-```{r}
-varcovmat = matrix(0, nrow=dim(dat)[1], ncol=dim(dat)[1])
+# Prepare data
+Filter experiments with both epidemiological and infected demographic effects
+```{r divide-datasets}
+# For now, get rid of NAs
+dat <- dat[(is.na(dat$d)==F),]
 
-for(i in 1:dim(dat)[1]){
-  for(j in 1:dim(dat)[1]){
-    if(i == j){varcovmat[i,j] = dat$var.g[i]}else{
-      if(dat[i, "Experiment"] == dat[j, "Experiment"] & dat[i, "Level_C"] == dat[j, "Level_C"] & dat[i, "Trait"] == dat[j, "Trait"]){
-        varcovmat[i,j] = 1/dat[i,"N_C"] + dat$g[i]*dat$g[j]/(dat[i,"N_C"] + dat[j,"N_C"] + dat[j,"N_X"]) 
+# How many experiments do we have?
+Exps <- unique(dat$Experiment)
+
+# A data frame of experiments that included Infected demographic and Uninfected demographic effects
+dat_1 <- data.frame()
+
+# A data frame of experiments that included Infected demographic and Epidemiological effects
+dat_2 <- data.frame()
+
+# populate data sets with corresponding experiments
+for (i in Exps) {
+  tmp <- dat[which(dat$Experiment == i), ]
+  if ("Uninfected demographic" %in% tmp$Trait.category &
+      "Infected demographic" %in% tmp$Trait.category) {
+    dat_1 <- rbind(dat_1, tmp)
+  }
+  if ("Epidemiological" %in% tmp$Trait.category &
+      "Infected demographic" %in% tmp$Trait.category) {
+    dat_2 <- rbind(dat_2, tmp)
+  }
+}
+
+dat_1 <- dat_1[which(dat_1$Trait.category == "Uninfected demographic" | dat_1$Trait.category == "Infected demographic"),]
+
+dat_2 <- dat_2[which(dat_2$Trait.category == "Epidemiological" | dat_2$Trait.category == "Infected demographic"),]
+```
+
+## Variance-covariance of sampling errors matrix (for multiple comparisons)
+This code produces a variance-covariance of sampling errors matrix, n x n, with n = number of effect sizes. It requires the dataset (dat), Hedge's g (g), and the variance of Hedge's g (var.g) to be defined above. It uses "Experiment", "Level_C", "Trait", "N_C", and "N_X" columns.
+```{r var-covar-matrix}
+# exclude studies with negative eigen values that make the matrix not positive definite
+dat_1 <- dat_1[-grep("Ashraf", dat_1$Study),]
+dat_1 <- dat_1[-grep("Pochini", dat_1$Study),]
+dat_1 <- dat_1[-grep("Shostak et al. 2015. Journal of Parasitology", dat_1$Study),]
+# this one includes one just barely negative eigen value
+# dat_1 <- dat_1[-grep("Waki", dat_1$Study),]
+
+varcovmat_1 = matrix(0, nrow=dim(dat_1)[1], ncol=dim(dat_1)[1])
+
+for(i in 1:dim(dat_1)[1]){
+  for(j in 1:dim(dat_1)[1]){
+    if(i == j){varcovmat_1[i,j] = dat_1$var.g[i]}else{
+      if(dat_1[i, "Experiment"] == dat_1[j, "Experiment"] & dat_1[i, "Level_C"] == dat_1[j, "Level_C"] & dat_1[i, "Trait"] == dat_1[j, "Trait"] & dat_1[i, "Trait.category"] == dat_1[j, "Trait.category"]){
+        varcovmat_1[i,j] = 1/dat_1[i,"N_C"] + dat_1$g[i]*dat_1$g[j]/(dat_1[i,"N_C"] + dat_1[i,"N_X"] + dat_1[j,"N_X"]) 
       }
     }
   }
 }
+
+val <- eigen(varcovmat_1)
+val$values[which(val$values < 0)]
+isSymmetric(varcovmat_1)
+
+# exclude studies with negative eigen values that make the matrix not positive definite
+dat_2 <- dat_2[-grep("Ashraf", dat_2$Study),]
+
+# these ones include just barely negative eigen value
+#dat_2 <- dat_2[-grep("Waki", dat_2$Study),]
+#dat_2 <- dat_2[-grep("Souto et al. 2015. VetMicrobiol.", dat_2$Study),]
+#dat_2 <- dat_2[-grep("Purcell", dat_2$Study),]
+#dat_2 <- dat_2[grep("Bradley", dat_2$Study),]
+
+varcovmat_2 = matrix(0, nrow=dim(dat_2)[1], ncol=dim(dat_2)[1])
+
+for(i in 1:dim(dat_2)[1]){
+  for(j in 1:dim(dat_2)[1]){
+    if(i == j){varcovmat_2[i,j] = dat_2$var.g[i]}else{
+      if(dat_2[i, "Experiment"] == dat_2[j, "Experiment"] & dat_2[i, "Level_C"] == dat_2[j, "Level_C"] & dat_2[i, "Trait"] == dat_2[j, "Trait"] & dat_2[i, "Trait.category"] == dat_2[j, "Trait.category"]){
+        varcovmat_2[i,j] = 1/dat_2[i,"N_C"] + dat_2$g[i]*dat_2$g[j]/(dat_2[i,"N_C"] + dat_2[i,"N_X"] + dat_2[j,"N_X"]) 
+      }
+    }
+  }
+}
+
+val <- eigen(varcovmat_2)
+val$values[which(val$values < 0)]
+isSymmetric(varcovmat_2)
+
+
+# For now remove rare host types to check interaction with host
+dat_2_byHost <-dat_2[which(dat_2$Host.type == "Arthropod" | dat_2$Host.type == "Mollusc" | dat_2$Host.type == "Fish" | dat_2$Host.type == "Amphibian"), ]
+
+varcovmat_2_byHost = matrix(0, nrow=dim(dat_2_byHost)[1], ncol=dim(dat_2_byHost)[1])
+
+for(i in 1:dim(dat_2_byHost)[1]){
+  for(j in 1:dim(dat_2_byHost)[1]){
+    if(i == j){varcovmat_2_byHost[i,j] = dat_2_byHost$var.g[i]}else{
+      if(dat_2_byHost[i, "Experiment"] == dat_2_byHost[j, "Experiment"] & dat_2_byHost[i, "Level_C"] == dat_2_byHost[j, "Level_C"] & dat_2_byHost[i, "Trait"] == dat_2_byHost[j, "Trait"] & dat_2_byHost[i, "Trait.category"] == dat_2_byHost[j, "Trait.category"]){
+        varcovmat_2_byHost[i,j] = 1/dat_2_byHost[i,"N_C"] + dat_2_byHost$g[i]*dat_2_byHost$g[j]/(dat_2_byHost[i,"N_C"] + dat_2_byHost[i,"N_X"] + dat_2_byHost[j,"N_X"]) 
+      }
+    }
+  }
+}
+
+isSymmetric(varcovmat_2_byHost)
+```
+
+# Descriptive statistics
+```{r descriptive-stats, echo=FALSE}
+d_stats <-
+  data.frame(
+    stat = c(
+      "Number of effects",
+      "Number of experiments",
+      "Number of arthropod species",
+      "Number of mollusc species",
+      "Number of fish species",
+      "Number of amphibian species",
+      "Number of reptile species",
+      "Number of bird species",
+      "Number of mammal species",
+      "Number of viral taxa",
+      "Number of bacterial taxa",
+      "Number of Multiple infection",
+      "Number of fungal taxa",
+      "Number of protozan taxa",
+      "Number of helminth taxa",
+      "Number of environment experiments",
+      "Number of pollution experiments",
+      "Number of resource experiments",
+      "Number of resistance effects",
+      "Number of prevalence effects",
+      "Number of intensity effects",
+      "Number of tolerance effects",
+      "Number of survival effects",
+      "Number of fecundity effects"
+    ),
+    Question_1 = c(
+      length(dat_1$g),
+      length(unique(dat_1$Experiment)),
+      length(unique(dat_1$Host[which(dat_1$Host.type == "Arthropod")])),
+      length(unique(dat_1$Host[which(dat_1$Host.type == "Mollusc")])),
+      length(unique(dat_1$Host[which(dat_1$Host.type == "Fish")])),
+      length(unique(dat_1$Host[which(dat_1$Host.type == "Amphibian")])),
+      length(unique(dat_1$Host[which(dat_1$Host.type == "Reptile")])),
+      length(unique(dat_1$Host[which(dat_1$Host.type == "Bird")])),
+      length(unique(dat_1$Host[which(dat_1$Host.type == "Mammal")])),
+      length(unique(dat_1$Parasite[which(dat_1$Parasite.type ==
+                                           "Virus")])),
+      length(unique(dat_1$Parasite[which(dat_1$Parasite.type ==
+                                           "Bacteria")])),
+      length(unique(dat_1$Parasite[which(dat_1$Parasite.type ==
+                                           "Multiple")])),
+      length(unique(dat_1$Parasite[which(dat_1$Parasite.type ==
+                                           "Fungus")])),
+      length(unique(dat_1$Parasite[which(dat_1$Parasite.type ==
+                                           "Protozoan")])),
+      length(unique(dat_1$Parasite[which(dat_1$Parasite.type ==
+                                           "Helminth")])),
+      length(dat_1$Experiment[which(dat_1$Gradient.category ==
+                                      "Environment")]),
+      length(dat_1$Experiment[which(dat_1$Gradient.category ==
+                                      "Pollution")]),
+      length(dat_1$Experiment[which(dat_1$Gradient.category ==
+                                      "Resource")]),
+      length(dat_1$ID[which(dat_1$Trait.category == "Epidemiological")]),
+      length(dat_1$ID[which(dat_1$Trait.type == "Prevalence")]),
+      length(dat_1$ID[which(dat_1$Trait.type == "Intensity")]),
+      length(dat_1$ID[grep("demographic", dat_1$Trait.category)]),
+      length(dat_1$ID[which(dat_1$Trait.type == "Survivorship")]),
+      length(dat_1$ID[which(dat_1$Trait.type == "Fecundity")])
+    ),
+    Question_2 = c(
+      length(dat_2$g),
+      length(unique(dat_2$Experiment)),
+      length(unique(dat_2$Host[which(dat_2$Host.type == "Arthropod")])),
+      length(unique(dat_2$Host[which(dat_2$Host.type == "Mollusc")])),
+      length(unique(dat_2$Host[which(dat_2$Host.type == "Fish")])),
+      length(unique(dat_2$Host[which(dat_2$Host.type == "Amphibian")])),
+      length(unique(dat_2$Host[which(dat_2$Host.type == "Reptile")])),
+      length(unique(dat_2$Host[which(dat_2$Host.type == "Bird")])),
+      length(unique(dat_2$Host[which(dat_2$Host.type == "Mammal")])),
+      length(unique(dat_2$Parasite[which(dat_2$Parasite.type ==
+                                           "Virus")])),
+      length(unique(dat_2$Parasite[which(dat_2$Parasite.type ==
+                                           "Bacteria")])),
+      length(unique(dat_2$Parasite[which(dat_2$Parasite.type ==
+                                           "Multiple")])),
+      length(unique(dat_2$Parasite[which(dat_2$Parasite.type ==
+                                           "Fungus")])),
+      length(unique(dat_2$Parasite[which(dat_2$Parasite.type ==
+                                           "Protozoan")])),
+      length(unique(dat_2$Parasite[which(dat_2$Parasite.type ==
+                                           "Helminth")])),
+      length(dat_2$Experiment[which(dat_2$Gradient.category ==
+                                      "Environment")]),
+      length(dat_2$Experiment[which(dat_2$Gradient.category ==
+                                      "Pollution")]),
+      length(dat_2$Experiment[which(dat_2$Gradient.category ==
+                                      "Resource")]),
+      length(dat_2$ID[which(dat_2$Trait.category == "Epidemiological")]),
+      length(dat_2$ID[which(dat_2$Trait.type == "Prevalence")]),
+      length(dat_2$ID[which(dat_2$Trait.type == "Intensity")]),
+      length(dat_2$ID[grep("demographic", dat_2$Trait.category)]),
+      length(dat_2$ID[which(dat_2$Trait.type == "Survivorship")]),
+      length(dat_2$ID[which(dat_2$Trait.type == "Fecundity")])
+    )
+  )
+
+d_stats %>%
+  kbl() %>%
+  kable_material(c("striped", "hover"), full_width = F)
 ```
 
 
-# preliminary analysis
-**!!!! Not final analysis, not for publication !!!!**
-```{r}
-m1 <-
+# Preliminary analysis
+
+## Question 1 - Are fitness traits negatively affected by stressors
+### Null model
+```{r Q1-null}
+Q1m1 <-
   rma.mv(
-    g ~ 1,
-    V = var.g,
+    abs(g) ~ 1,
+    V = varcovmat_1,
     random = list( ~ 1 |
                      ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat,
+    data = dat_1,
     method = "REML"
   )
 
-summary(m1)
-
-m2 <-
-  rma.mv(
-    g ~ Trait.category - 1,
-    V = var.g,
-    random = list( ~ 1 |
-                     ID, ~ 1 | Experiment,  ~ 1 | Parasite),
-    data = dat,
-    method = "REML"
-  )
-
-summary(m2)
+summary(Q1m1)
 ```
 
+
+## Single fixed effect
+```{r Q1-single-fixed}
+Q1m2 <-
+  rma.mv(
+    abs(g) ~ Trait.category -1,
+    V = varcovmat_1,
+    random = list( ~ 1 |
+                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_1,
+    method = "REML"
+  )
+
+summary(Q1m2)
+```
+
+### Trait category x Gradient category interaction
+```{r Q1-Trait-x-Gradient}
+Q1m3 <-
+  rma.mv(
+    abs(g) ~ Trait.category:Gradient.category -1,
+    V = varcovmat_1,
+    random = list( ~ 1 |
+                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_1,
+    method = "REML"
+  )
+
+summary(Q1m3)
+```
+
+### Trait category x Host type interaction
+```{r Q1-Trait-x-Host}
+Q1m4 <-
+  rma.mv(
+    abs(g) ~ Trait.category:Host.type -1,
+    V = varcovmat_1,
+    random = list( ~ 1 |
+                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_1,
+    method = "REML"
+  )
+
+summary(Q1m4)
+```
+
+## Question 2 - Do resistance and tolerance traits have different sensitivity to stressors
+### Null model
+```{r Q2-null}
+Q2m1 <-
+  rma.mv(
+    abs(g) ~ 1,
+    V = varcovmat_2,
+    random = list( ~ 1 |
+                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_2,
+    method = "REML"
+  )
+
+summary(Q2m1)
+
+```
+
+## Single fixed effect
+```{r Q2-single-fixed}
+Q2m2 <-
+  rma.mv(
+    abs(g) ~ Trait.category -1,
+    V = varcovmat_2,
+    random = list( ~ 1 |
+                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_2,
+    method = "REML"
+  )
+
+summary(Q2m2)
+```
+
+### Trait category x Gradient category interaction
+```{r Q2-Trait-x-Gradient}
+Q2m3 <-
+  rma.mv(
+    abs(g) ~ Trait.category:Gradient.category -1,
+    V = varcovmat_2,
+    random = list( ~ 1 |
+                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_2,
+    method = "REML"
+  )
+
+summary(Q2m3)
+```
+
+
+### Trait category x Host type interaction
+```{r Q2-Trait-x-Host}
+Q2m4 <-
+  rma.mv(
+    abs(g) ~ Trait.category:Host.type -1,
+    V = varcovmat_2_byHost,
+    random = list( ~ 1 |
+                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_2_byHost,
+    method = "REML",
+)
+
+summary(Q2m4)
+```
