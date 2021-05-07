@@ -46,7 +46,7 @@ dat <- dat[-which(dat$Variation.Type == ""),]
 dat$Gradient.category <- gsub(pattern = "Toxin", replacement = "Pollution", x = dat$Gradient.category)
 
 # exclude ambiguous/equivocal categories
-dat <- dat[which(dat$Gradient.category != "Ecological? Environmental?"),]
+dat <- dat[which(dat$Gradient.category != "Ecological"),]
 
 # Check gradient categories 
 levels(as.factor(dat$Gradient.category))
