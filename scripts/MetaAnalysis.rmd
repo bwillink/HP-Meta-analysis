@@ -31,7 +31,7 @@ lapply(x, function(y) {
 
 Read in data
 ```{r read-data}
-dat <- read.csv("../data/MA_dat_07-05-2021.csv", header = T, sep = ",")
+dat <- read.csv("../data/MA_dat_19-06-2021.csv", header = T, sep = ",")
 
 # subset data that have a "variation type". We'll parse based on variation type below
 dat <- dat[-which(dat$Variation.Type == ""),]
@@ -118,19 +118,16 @@ dat$SD_C <- vector(length = N)
 dat$SD_X <- vector(length = N)
 
 for (i in 1:N) {
-  
   # Calculate SD if SE is reported
   if (dat$Variation.Type[i] == "SE") {
     dat$SD_C[i] <- dat$Variation_C[i] * sqrt(dat$N_C[i])
     dat$SD_X[i] <- dat$Variation_X[i] * sqrt(dat$N_X[i])
   } else {
-   
-     # calculate SD if a 95% confidence interval for a normal distribution is reported
+    # calculate SD if a 95% confidence interval for a normal distribution is reported
     # this also applies to the Wald confidence interval for proportions, as it is a normal approximation to the binomial
     if (dat$Variation.Type[i] == "CI" |
         dat$Variation.Type[i] == "Wald CI") {
-     
-       # calculate SE from lower and upper limits
+      # calculate SE from lower and upper limits
       temp_C1 <- (dat$Upr_C[i] - dat$Mean_C[i]) / 1.96
       temp_C2 <- (dat$Mean_C[i] - dat$Lwr_C[i]) / 1.96
       
@@ -138,19 +135,26 @@ for (i in 1:N) {
       temp_X2 <- (dat$Mean_X[i] - dat$Lwr_X[i]) / 1.96
       
       # average digitized/recorded values of SE (because we have two) and transform to SD
-      dat$SD_C[i] <- mean(abs(c(temp_C1, temp_C2))) * sqrt(dat$N_C[i])
-      dat$SD_X[i] <- mean(abs(c(temp_C1, temp_C2))) * sqrt(dat$N_X[i])
+      dat$SD_C[i] <-
+        mean(abs(c(temp_C1, temp_C2))) * sqrt(dat$N_C[i])
+      dat$SD_X[i] <-
+        mean(abs(c(temp_C1, temp_C2))) * sqrt(dat$N_X[i])
     } else {
-     
-       # if SD is reported leave as such
-      if (dat$Variation.Type[i] == "SD") {
-        dat$SD_C[i] <- dat$Variation_C[i]
-        dat$SD_X[i] <- dat$Variation_X[i]
-      } else {
-        
-        # if there is no appropriate data, make these columns NA
-        dat$SD_C[i] <- NA
-        dat$SD_X[i] <- NA
+      # approximate SD if IQ range is reported
+      if (dat$Variation.Type[i] == "IQ") {
+        dat$SD_C[i] <- (dat$Upr_C[i] - dat$Lwr_C[i]) / 1.35
+        dat$SD_X[i] <- (dat$Upr_X[i] - dat$Lwr_X[i]) / 1.35
+      }
+      else {
+        # if SD is reported leave as such
+        if (dat$Variation.Type[i] == "SD") {
+          dat$SD_C[i] <- dat$Variation_C[i]
+          dat$SD_X[i] <- dat$Variation_X[i]
+        } else {
+          # if there is no appropriate data, make these columns NA
+          dat$SD_C[i] <- NA
+          dat$SD_X[i] <- NA
+        }
       }
     }
   }
@@ -200,14 +204,27 @@ for (i in 1:N) {
           dat$var.d[i] <- (4 * Vr) / (1 - r ^ 2) ^ 3
         }
         else{
-          # converting log OR
-          if (is.na(dat$Log.OR.v[i]) == FALSE & dat$Log.OR.v[i] > 0) {
-            dat$d[i] <- dat$Log.OR[i] * (sqrt(3) / pi)
-            dat$var.d[i] <- dat$Log.OR.v[i] * 3 / pi ^ 2
-          } else {
-            # for now, leave other types of effects as NA
-            dat$d[i] <- NA
-            dat$var.d[i] <- NA
+          # If Z is reported from a comparison of two independent groups
+          if (dat$Variation.Type[i] == "Z") {
+            dat$d[i] <-
+              sqrt(dat$Z_X[i] * sqrt(dat$N_C[i] + dat$N_X[i]) / (1 - sqrt(
+                dat$Z_X[i] ^ 2 * (dat$N_C[i] + dat$N_X[i]) ^ -1
+              )))
+            dat$var.d[i] <-
+              (dat$N_C[i] + dat$N_X[i]) / (dat$N_C[i] * dat$N_X[i]) + (dat$d[i] ^ 2) /
+              (2 * (dat$N_C[i] + dat$N_X[i]))
+          }
+          else{
+            # converting log OR
+            if (is.na(dat$Log.OR.v[i]) == FALSE &
+                dat$Log.OR.v[i] > 0) {
+              dat$d[i] <- dat$Log.OR[i] * (sqrt(3) / pi)
+              dat$var.d[i] <- dat$Log.OR.v[i] * 3 / pi ^ 2
+            } else {
+              # for now, leave other types of effects as NA
+              dat$d[i] <- NA
+              dat$var.d[i] <- NA
+            }
           }
         }
       }
