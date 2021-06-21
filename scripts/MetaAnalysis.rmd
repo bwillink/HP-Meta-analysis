@@ -35,6 +35,9 @@ dat <- read.csv("../data/MA_dat_19-06-2021.csv", header = T, sep = ",")
 
 # subset data that have a "variation type". We'll parse based on variation type below
 dat <- dat[-which(dat$Variation.Type == ""),]
+dat <- subset(dat, select=-c(Data_source,Comment)) 
+colnames(dat)
+  
 ```
 
 # Data cleaning
@@ -140,7 +143,7 @@ for (i in 1:N) {
       dat$SD_X[i] <-
         mean(abs(c(temp_C1, temp_C2))) * sqrt(dat$N_X[i])
     } else {
-      # approximate SD if IQ range is reported
+      # approximate SD otaf IQ range is reported
       if (dat$Variation.Type[i] == "IQ") {
         dat$SD_C[i] <- (dat$Upr_C[i] - dat$Lwr_C[i]) / 1.35
         dat$SD_X[i] <- (dat$Upr_X[i] - dat$Lwr_X[i]) / 1.35
@@ -297,8 +300,12 @@ This code produces a variance-covariance of sampling errors matrix, n x n, with 
 dat_1 <- dat_1[-grep("Ashraf", dat_1$Study),]
 dat_1 <- dat_1[-grep("Pochini", dat_1$Study),]
 dat_1 <- dat_1[-grep("Shostak et al. 2015. Journal of Parasitology", dat_1$Study),]
+
+# this results in negative eigen values, probably because differences between resource levels are stark and data (fecundity) is far from normally distributed, the problem persist after log 10 transforming, for now, I'm removing the experiment
+dat_1 <- dat_1[-grep(122, dat_1$Experiment),]
+
 # this one includes one just barely negative eigen value
-# dat_1 <- dat_1[-grep("Waki", dat_1$Study),]
+#dat_1 <- dat_1[-grep("Waki", dat_1$Study),]
 
 varcovmat_1 = matrix(0, nrow=dim(dat_1)[1], ncol=dim(dat_1)[1])
 
@@ -323,7 +330,9 @@ dat_2 <- dat_2[-grep("Ashraf", dat_2$Study),]
 #dat_2 <- dat_2[-grep("Waki", dat_2$Study),]
 #dat_2 <- dat_2[-grep("Souto et al. 2015. VetMicrobiol.", dat_2$Study),]
 #dat_2 <- dat_2[-grep("Purcell", dat_2$Study),]
-#dat_2 <- dat_2[grep("Bradley", dat_2$Study),]
+#dat_2 <- dat_2[-grep("Bradley", dat_2$Study),]
+#dat_2 <- dat_2[-grep("Naggar and Paxton. 2020. Microbial Biotechnology", dat_2$Study),] 
+
 
 varcovmat_2 = matrix(0, nrow=dim(dat_2)[1], ncol=dim(dat_2)[1])
 
