@@ -208,7 +208,7 @@ for (i in 1:N) {
         }
         else{
           # If Z is reported from a comparison of two independent groups
-          if (dat$Variation.Type[i] == "Z") {
+          if (dat$Variation.Type[i] == "Z_reg") {
             dat$d[i] <-
               sqrt(dat$Z_X[i] * sqrt(dat$N_C[i] + dat$N_X[i]) / (1 - sqrt(
                 dat$Z_X[i] ^ 2 * (dat$N_C[i] + dat$N_X[i]) ^ -1
