@@ -31,7 +31,7 @@ lapply(x, function(y) {
 
 Read in data
 ```{r read-data}
-dat <- read.csv("../data/MA_dat_19-06-2021.csv", header = T, sep = ",")
+dat <- read.csv("../data/MA_dat_21-07-2021.csv", header = T, sep = ",")
 
 # subset data that have a "variation type". We'll parse based on variation type below
 dat <- dat[-which(dat$Variation.Type == ""),]
@@ -58,6 +58,67 @@ levels(as.factor(dat$Gradient.category))
 N <- nrow(dat)
 ```
 
+## Median, min, max and n to mean and SD
+```{r}
+non_par <- dat[which(dat$Variation.Type == "Median_Min_Max"),]
+
+# Estimate mean for control and treatment from median, maximum and minimum
+non_par$Estimated_Mean_C <- (non_par$Lwr_C + 2 *non_par$Mean_C + non_par$Upr_C) / 4
+non_par$Estimated_Mean_X <- (non_par$Lwr_X + 2 *non_par$Mean_X + non_par$Upr_X) / 4
+
+# Estimate SD from range and n
+# First, read in Xi_N table from Wang et al. (2014) BMC Medical Research Methodology
+Xi_table <- read.csv("../scripts/Xi_N_Table.csv", header = T, sep = ",") 
+
+# Estimate SD using the approximation for each N under 50
+for (i in 1:length(non_par$ID)) {
+  non_par$Estimated_SD_C[i] <-
+    (non_par$Upr_C[i] - non_par$Lwr_C[i]) / Xi_table$Xi_N[which(Xi_table$N == non_par$N_C[i])]
+  non_par$Estimated_SD_X[i] <-
+    (non_par$Upr_X[i] - non_par$Lwr_X[i]) / Xi_table$Xi_N[which(Xi_table$N == non_par$N_C[i])]
+}
+
+# overwrite dat
+
+dat$Mean_C[which(dat$Variation.Type == "Median_Min_Max")] <- non_par$Estimated_Mean_C 
+dat$Mean_X[which(dat$Variation.Type == "Median_Min_Max")] <- non_par$Estimated_Mean_X
+
+dat$Variation_C[which(dat$Variation.Type == "Median_Min_Max")] <- non_par$Estimated_SD_C
+dat$Variation_X[which(dat$Variation.Type == "Median_Min_Max")] <- non_par$Estimated_SD_X
+
+dat$Variation.Type[which(dat$Variation.Type == "Median_Min_Max")] <- "SD"
+
+# Sanity check
+levels(as.factor(dat$Variation.Type))
+```
+
+## Median, min, max, and IQ range to mean
+```{r}
+non_par <- dat[which(dat$Variation.Type == "Median_IQ"),]
+
+# Estimate mean for control and treatment from median, maximum and minimum
+non_par$Estimated_Mean_C <- (non_par$Lwr_C + 2 *non_par$Mean_C + non_par$Upr_C) / 4
+non_par$Estimated_Mean_X <- (non_par$Lwr_X + 2 *non_par$Mean_X + non_par$Upr_X) / 4
+
+# overwrite dat
+dat$Mean_C[which(dat$Variation.Type == "Median_Min_Max")] <- non_par$Estimated_Mean_C 
+dat$Mean_X[which(dat$Variation.Type == "Median_Min_Max")] <- non_par$Estimated_Mean_X
+
+dat$Variation.Type[which(dat$Variation.Type == "Median_IQ")] <- "IQ"
+
+# Sanity check
+levels(as.factor(dat$Variation.Type))
+```
+
+## subset effects with workable "variation types"
+```{r}
+nrow(dat)
+
+accepted_var <- c("SE", "SD", "CI", "Wald CI", "IQ", "OR", "t", "Z", "Z_reg")
+dat <- dat[which(dat$Variation.Type %in% accepted_var),]
+
+nrow(dat)
+```
 
 ## Standardize survival/mortality
 ```{r standardize-survival}
@@ -143,7 +204,7 @@ for (i in 1:N) {
       dat$SD_X[i] <-
         mean(abs(c(temp_C1, temp_C2))) * sqrt(dat$N_X[i])
     } else {
-      # approximate SD otaf IQ range is reported
+      # approximate SD if IQ range is reported
       if (dat$Variation.Type[i] == "IQ") {
         dat$SD_C[i] <- (dat$Upr_C[i] - dat$Lwr_C[i]) / 1.35
         dat$SD_X[i] <- (dat$Upr_X[i] - dat$Lwr_X[i]) / 1.35
@@ -192,7 +253,7 @@ for (i in 1:N) {
       
     } else{
       # if Z and N are reported for a regression analysis
-      if (dat$Variation.Type[i] == "z") {
+      if (dat$Variation.Type[i] == "Z_reg") {
         r <- dat$Z_X[i] / sqrt(dat$Z_N[i])
         dat$d[i] <- (2 * r) / (sqrt(1 - r ^ 2))
         Vr <- (1 - r ^ 2) ^ 2 / (dat$Z_N[i] - 1)
@@ -208,7 +269,7 @@ for (i in 1:N) {
         }
         else{
           # If Z is reported from a comparison of two independent groups
-          if (dat$Variation.Type[i] == "Z_reg") {
+          if (dat$Variation.Type[i] == "Z") {
             dat$d[i] <-
               sqrt(dat$Z_X[i] * sqrt(dat$N_C[i] + dat$N_X[i]) / (1 - sqrt(
                 dat$Z_X[i] ^ 2 * (dat$N_C[i] + dat$N_X[i]) ^ -1
@@ -302,7 +363,7 @@ dat_1 <- dat_1[-grep("Pochini", dat_1$Study),]
 dat_1 <- dat_1[-grep("Shostak et al. 2015. Journal of Parasitology", dat_1$Study),]
 
 # this results in negative eigen values, probably because differences between resource levels are stark and data (fecundity) is far from normally distributed, the problem persist after log 10 transforming, for now, I'm removing the experiment
-dat_1 <- dat_1[-grep(122, dat_1$Experiment),]
+dat_1 <- dat_1[-grep(121, dat_1$Experiment),]
 
 # this one includes one just barely negative eigen value
 #dat_1 <- dat_1[-grep("Waki", dat_1$Study),]
