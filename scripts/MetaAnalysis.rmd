@@ -53,9 +53,6 @@ dat <- dat[which(dat$Gradient.category != "Ecological"),]
 
 # Check gradient categories 
 levels(as.factor(dat$Gradient.category))
-
-# store sample size in an object
-N <- nrow(dat)
 ```
 
 ## Median, min, max and n to mean and SD
@@ -118,6 +115,9 @@ accepted_var <- c("SE", "SD", "CI", "Wald CI", "IQ", "OR", "t", "Z", "Z_reg")
 dat <- dat[which(dat$Variation.Type %in% accepted_var),]
 
 nrow(dat)
+
+# store sample size in an object
+N <- nrow(dat)
 ```
 
 ## Standardize survival/mortality
