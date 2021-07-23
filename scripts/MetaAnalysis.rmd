@@ -264,7 +264,7 @@ for (i in 1:N) {
         if (dat$Variation.Type[i] == "t") {
           r <- sqrt((dat$Z_X[i] ^ 2) / (dat$Z_X[i] ^ 2 + dat$Z_df[i]))
           dat$d[i] <- (2 * r) / (sqrt(1 - r ^ 2))
-          Vr <- (1 - r ^ 2) ^ 2 / (dat$Z_N[i] - 1)
+          Vr <- (1 - r ^ 2) ^ 2 / (dat$R_N[i] - 1)
           dat$var.d[i] <- (4 * Vr) / (1 - r ^ 2) ^ 3
         }
         else{
@@ -356,6 +356,100 @@ dat_2 <- dat_2[which(dat_2$Trait.category == "Epidemiological" | dat_2$Trait.cat
 
 ## Variance-covariance of sampling errors matrix (for multiple comparisons)
 This code produces a variance-covariance of sampling errors matrix, n x n, with n = number of effect sizes. It requires the dataset (dat), Hedge's g (g), and the variance of Hedge's g (var.g) to be defined above. It uses "Experiment", "Level_C", "Trait", "N_C", and "N_X" columns.
+
+
+### Identify negative eigen values
+First, we find out which studies have negative eigen values in their variance-covar matrix. This means covariance is larger than variance and it's an indicator of suspiciously low variance and potentially an incorrectly reported N or an error while digitizing data.
+
+For data set 1
+```{r check-var-covar_1}
+studies_1 <- unique(dat_1$Study)
+studies_to_check <- c()
+negative_eigen <- c()
+
+for (k in studies_1) {
+  dat_study <- dat_1[which (dat_1$Study == k),]
+  varcovmat = matrix(0,
+                     nrow = dim(dat_study)[1],
+                     ncol = dim(dat_study)[1])
+  
+  for (i in 1:dim(dat_study)[1]) {
+    for (j in 1:dim(dat_study)[1]) {
+      if (i == j) {
+        varcovmat[i, j] = dat_study$var.g[i]
+      } else{
+        if (dat_study[i, "Experiment"] == dat_study[j, "Experiment"] &
+            dat_study[i, "Level_C"] == dat_study[j, "Level_C"] &
+            dat_study[i, "Trait"] == dat_study[j, "Trait"] &
+            dat_study[i, "Trait.category"] == dat_study[j, "Trait.category"]) {
+          varcovmat[i, j] = 1 / dat_study[i, "N_C"] + dat_study$g[i] * dat_study$g[j] /
+            (dat_study[i, "N_C"] + dat_study[i, "N_X"] + dat_study[j, "N_X"])
+        }
+      }
+    }
+  }
+  
+  val <- eigen(varcovmat)
+  for (m in 1:length(val$values)){
+    if (val$values[m] < 0) {
+    studies_to_check <- append(studies_to_check, k)
+    negative_eigen <- append(negative_eigen, val$values[m])
+    }
+  }
+}
+    
+Neg_eigen_1 <- data.frame(study = studies_to_check, eigen = negative_eigen)
+
+Neg_eigen_1 %>%
+  kbl() %>%
+  kable_material(c("striped", "hover"), full_width = F)
+```
+
+For data set 2
+```{r check-var-covar_2}
+studies_2 <- unique(dat_2$Study)
+studies_to_check <- c()
+negative_eigen <- c()
+
+for (k in studies_2) {
+  dat_study <- dat_2[which (dat_2$Study == k),]
+  varcovmat = matrix(0,
+                     nrow = dim(dat_study)[1],
+                     ncol = dim(dat_study)[1])
+  
+  for (i in 1:dim(dat_study)[1]) {
+    for (j in 1:dim(dat_study)[1]) {
+      if (i == j) {
+        varcovmat[i, j] = dat_study$var.g[i]
+      } else{
+        if (dat_study[i, "Experiment"] == dat_study[j, "Experiment"] &
+            dat_study[i, "Level_C"] == dat_study[j, "Level_C"] &
+            dat_study[i, "Trait"] == dat_study[j, "Trait"] &
+            dat_study[i, "Trait.category"] == dat_study[j, "Trait.category"]) {
+          varcovmat[i, j] = 1 / dat_study[i, "N_C"] + dat_study$g[i] * dat_study$g[j] /
+            (dat_study[i, "N_C"] + dat_study[i, "N_X"] + dat_study[j, "N_X"])
+        }
+      }
+    }
+  }
+  
+  val <- eigen(varcovmat)
+  for (m in 1:length(val$values)){
+    if (val$values[m] < 0) {
+    studies_to_check <- append(studies_to_check, k)
+    negative_eigen <- append(negative_eigen, val$values[m])
+    }
+  }
+}
+    
+Neg_eigen_2 <- data.frame(study = studies_to_check, eigen = negative_eigen)
+
+Neg_eigen_2 %>%
+  kbl() %>%
+  kable_material(c("striped", "hover"), full_width = F)
+```
+
+Based on these eigen values, we tentatively remove the studies/experiments that cause the most trouble. Some we know have issues with reporting N, other we need to go back to and double check
 ```{r var-covar-matrix}
 # exclude studies with negative eigen values that make the matrix not positive definite
 dat_1 <- dat_1[-grep("Ashraf", dat_1$Study),]
@@ -364,9 +458,6 @@ dat_1 <- dat_1[-grep("Shostak et al. 2015. Journal of Parasitology", dat_1$Study
 
 # this results in negative eigen values, probably because differences between resource levels are stark and data (fecundity) is far from normally distributed, the problem persist after log 10 transforming, for now, I'm removing the experiment
 dat_1 <- dat_1[-grep(121, dat_1$Experiment),]
-
-# this one includes one just barely negative eigen value
-#dat_1 <- dat_1[-grep("Waki", dat_1$Study),]
 
 varcovmat_1 = matrix(0, nrow=dim(dat_1)[1], ncol=dim(dat_1)[1])
 
@@ -380,20 +471,14 @@ for(i in 1:dim(dat_1)[1]){
   }
 }
 
-val <- eigen(varcovmat_1)
-val$values[which(val$values < 0)]
-isSymmetric(varcovmat_1)
-
 # exclude studies with negative eigen values that make the matrix not positive definite
 dat_2 <- dat_2[-grep("Ashraf", dat_2$Study),]
-
-# these ones include just barely negative eigen value
-#dat_2 <- dat_2[-grep("Waki", dat_2$Study),]
-#dat_2 <- dat_2[-grep("Souto et al. 2015. VetMicrobiol.", dat_2$Study),]
+dat_2 <- dat_2[-grep("Waki&Yoshinaga", dat_2$Study),]
+dat_2 <- dat_2[-grep("Souto et al. 2015. VetMicrobiol.", dat_2$Study),]
 #dat_2 <- dat_2[-grep("Purcell", dat_2$Study),]
 #dat_2 <- dat_2[-grep("Bradley", dat_2$Study),]
+dat_2 <- dat_2[-grep("Doublet", dat_2$Study),]
 #dat_2 <- dat_2[-grep("Naggar and Paxton. 2020. Microbial Biotechnology", dat_2$Study),] 
-
 
 varcovmat_2 = matrix(0, nrow=dim(dat_2)[1], ncol=dim(dat_2)[1])
 
@@ -405,11 +490,7 @@ for(i in 1:dim(dat_2)[1]){
       }
     }
   }
-}
-
-val <- eigen(varcovmat_2)
-val$values[which(val$values < 0)]
-isSymmetric(varcovmat_2)
+}  
 
 
 # For now remove rare host types to check interaction with host
@@ -426,8 +507,6 @@ for(i in 1:dim(dat_2_byHost)[1]){
     }
   }
 }
-
-isSymmetric(varcovmat_2_byHost)
 ```
 
 # Descriptive statistics
@@ -638,7 +717,7 @@ summary(Q2m2)
 ```{r Q2-Trait-x-Gradient}
 Q2m3 <-
   rma.mv(
-    abs(g) ~ Trait.category:Gradient.category -1,
+    ab(g) ~ Trait.category:Gradient.category -1,
     V = varcovmat_2,
     random = list( ~ 1 |
                      ID, ~ 1 | Experiment, ~ 1 | Parasite),
