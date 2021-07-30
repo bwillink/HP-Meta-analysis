@@ -271,7 +271,7 @@ for (i in 1:N) {
           # If Z is reported from a comparison of two independent groups
           if (dat$Variation.Type[i] == "Z") {
             dat$d[i] <-
-              sqrt(dat$Z_X[i] * sqrt(dat$N_C[i] + dat$N_X[i]) / (1 - sqrt(
+              sqrt(abs(dat$Z_X[i]) * sqrt(dat$N_C[i] + dat$N_X[i]) / (1 - sqrt(
                 dat$Z_X[i] ^ 2 * (dat$N_C[i] + dat$N_X[i]) ^ -1
               )))
             dat$var.d[i] <-
@@ -359,7 +359,7 @@ This code produces a variance-covariance of sampling errors matrix, n x n, with 
 
 
 ### Identify negative eigen values
-First, we find out which studies have negative eigen values in their variance-covar matrix. This means covariance is larger than variance and it's an indicator of suspiciously low variance and potentially an incorrectly reported N or an error while digitizing data.
+First, we find out which studies have negative eigen values in their variance-covar matrix. This means covariance between treatment effects with the same control is larger than variance and it's an indicator of suspiciously low variance and potentially an incorrectly reported N or an error while digitizing data.
 
 For data set 1
 ```{r check-var-covar_1}
@@ -456,7 +456,7 @@ dat_1 <- dat_1[-grep("Ashraf", dat_1$Study),]
 dat_1 <- dat_1[-grep("Pochini", dat_1$Study),]
 dat_1 <- dat_1[-grep("Shostak et al. 2015. Journal of Parasitology", dat_1$Study),]
 
-# this results in negative eigen values, probably because differences between resource levels are stark and data (fecundity) is far from normally distributed, the problem persist after log 10 transforming, for now, I'm removing the experiment
+# Civitello et al 2020 has relatively high covariances for uninfected demographic effects of resource limitation because the variance in the control is extremely low. this results in negative eigen values.For now, I'm removing the experiment.
 dat_1 <- dat_1[-grep(121, dat_1$Experiment),]
 
 varcovmat_1 = matrix(0, nrow=dim(dat_1)[1], ncol=dim(dat_1)[1])
@@ -471,14 +471,14 @@ for(i in 1:dim(dat_1)[1]){
   }
 }
 
-# exclude studies with negative eigen values that make the matrix not positive definite
+# exclude/double check studies with negative eigen values that make the matrix not positive definite
 dat_2 <- dat_2[-grep("Ashraf", dat_2$Study),]
 dat_2 <- dat_2[-grep("Waki&Yoshinaga", dat_2$Study),]
 dat_2 <- dat_2[-grep("Souto et al. 2015. VetMicrobiol.", dat_2$Study),]
-#dat_2 <- dat_2[-grep("Purcell", dat_2$Study),]
-#dat_2 <- dat_2[-grep("Bradley", dat_2$Study),]
+#dat_2 <- dat_2[-grep("Purcell", dat_2$Study),] Variance is low but everything checks out for Purcell et al 2016
+dat_2 <- dat_2[-grep("Bradley", dat_2$Study),]
 dat_2 <- dat_2[-grep("Doublet", dat_2$Study),]
-#dat_2 <- dat_2[-grep("Naggar and Paxton. 2020. Microbial Biotechnology", dat_2$Study),] 
+#dat_2 <- dat_2[-grep("Naggar and Paxton. 2020. Microbial Biotechnology", dat_2$Study),] # variance may be low because Z score considers cage effect (30 bees x cage in 3 cages x treatment) but I don't know what to report as sample size. For now, I have dialed it back from 90 to 30 and this makes all eigen values positive.
 
 varcovmat_2 = matrix(0, nrow=dim(dat_2)[1], ncol=dim(dat_2)[1])
 
