@@ -1,6 +1,6 @@
 ---
 title: "Host-Parasite Meta-analysis"
-author: "Amanda Vicente, Beatriz Willink, Dave Civitello"
+author: "Amanda Vicente, Beatriz Willink, Kacy Nowak, Dave Civitello"
 date: "`r Sys.Date()`"
 output:
   html_document:
@@ -31,10 +31,10 @@ lapply(x, function(y) {
 
 Read in data
 ```{r read-data}
-dat <- read.csv("../data/MA_dat_21-07-2021.csv", header = T, sep = ",")
+dat <- read.csv("../data/MA_dat_30-07-2021.csv", header = T, sep = ",")
 
 # subset data that have a "variation type". We'll parse based on variation type below
-dat <- dat[-which(dat$Variation.Type == ""),]
+dat <- dat[-which(is.na(dat$Variation.Type) == TRUE),]
 dat <- subset(dat, select=-c(Data_source,Comment)) 
 colnames(dat)
   
@@ -717,7 +717,7 @@ summary(Q2m2)
 ```{r Q2-Trait-x-Gradient}
 Q2m3 <-
   rma.mv(
-    ab(g) ~ Trait.category:Gradient.category -1,
+    abs(g) ~ Trait.category:Gradient.category -1,
     V = varcovmat_2,
     random = list( ~ 1 |
                      ID, ~ 1 | Experiment, ~ 1 | Parasite),
