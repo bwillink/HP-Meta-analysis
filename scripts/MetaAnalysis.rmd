@@ -31,11 +31,11 @@ lapply(x, function(y) {
 
 Read in data
 ```{r read-data}
-dat <- read.csv("../data/MA_dat_30-07-2021.csv", header = T, sep = ",")
+dat <- read.csv("../data/MA_dat_05-08-2021.csv", header = T, sep = ",")
 
 # subset data that have a "variation type". We'll parse based on variation type below
 dat <- dat[-which(is.na(dat$Variation.Type) == TRUE),]
-dat <- subset(dat, select=-c(Data_source,Comment)) 
+dat <- subset(dat, select = -c(Data_source,Comment)) 
 colnames(dat)
   
 ```
@@ -60,8 +60,8 @@ levels(as.factor(dat$Gradient.category))
 non_par <- dat[which(dat$Variation.Type == "Median_Min_Max"),]
 
 # Estimate mean for control and treatment from median, maximum and minimum
-non_par$Estimated_Mean_C <- (non_par$Lwr_C + 2 *non_par$Mean_C + non_par$Upr_C) / 4
-non_par$Estimated_Mean_X <- (non_par$Lwr_X + 2 *non_par$Mean_X + non_par$Upr_X) / 4
+non_par$Estimated_Mean_C <- (non_par$Lwr_C + 2 * non_par$Mean_C + non_par$Upr_C) / 4
+non_par$Estimated_Mean_X <- (non_par$Lwr_X + 2 * non_par$Mean_X + non_par$Upr_X) / 4
 
 # Estimate SD from range and n
 # First, read in Xi_N table from Wang et al. (2014) BMC Medical Research Methodology
@@ -94,8 +94,8 @@ levels(as.factor(dat$Variation.Type))
 non_par <- dat[which(dat$Variation.Type == "Median_IQ"),]
 
 # Estimate mean for control and treatment from median, maximum and minimum
-non_par$Estimated_Mean_C <- (non_par$Lwr_C + 2 *non_par$Mean_C + non_par$Upr_C) / 4
-non_par$Estimated_Mean_X <- (non_par$Lwr_X + 2 *non_par$Mean_X + non_par$Upr_X) / 4
+non_par$Estimated_Mean_C <- (non_par$Lwr_C + 2 * non_par$Mean_C + non_par$Upr_C) / 4
+non_par$Estimated_Mean_X <- (non_par$Lwr_X + 2 * non_par$Mean_X + non_par$Upr_X) / 4
 
 # overwrite dat
 dat$Mean_C[which(dat$Variation.Type == "Median_Min_Max")] <- non_par$Estimated_Mean_C 
