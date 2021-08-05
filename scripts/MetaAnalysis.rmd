@@ -72,11 +72,10 @@ for (i in 1:length(non_par$ID)) {
   non_par$Estimated_SD_C[i] <-
     (non_par$Upr_C[i] - non_par$Lwr_C[i]) / Xi_table$Xi_N[which(Xi_table$N == non_par$N_C[i])]
   non_par$Estimated_SD_X[i] <-
-    (non_par$Upr_X[i] - non_par$Lwr_X[i]) / Xi_table$Xi_N[which(Xi_table$N == non_par$N_C[i])]
+    (non_par$Upr_X[i] - non_par$Lwr_X[i]) / Xi_table$Xi_N[which(Xi_table$N == non_par$N_X[i])]
 }
 
 # overwrite dat
-
 dat$Mean_C[which(dat$Variation.Type == "Median_Min_Max")] <- non_par$Estimated_Mean_C 
 dat$Mean_X[which(dat$Variation.Type == "Median_Min_Max")] <- non_par$Estimated_Mean_X
 
@@ -98,8 +97,8 @@ non_par$Estimated_Mean_C <- (non_par$Lwr_C + 2 * non_par$Mean_C + non_par$Upr_C)
 non_par$Estimated_Mean_X <- (non_par$Lwr_X + 2 * non_par$Mean_X + non_par$Upr_X) / 4
 
 # overwrite dat
-dat$Mean_C[which(dat$Variation.Type == "Median_Min_Max")] <- non_par$Estimated_Mean_C 
-dat$Mean_X[which(dat$Variation.Type == "Median_Min_Max")] <- non_par$Estimated_Mean_X
+dat$Mean_C[which(dat$Variation.Type == "Median_IQ")] <- non_par$Estimated_Mean_C 
+dat$Mean_X[which(dat$Variation.Type == "Median_IQ")] <- non_par$Estimated_Mean_X
 
 dat$Variation.Type[which(dat$Variation.Type == "Median_IQ")] <- "IQ"
 
@@ -473,10 +472,10 @@ for(i in 1:dim(dat_1)[1]){
 
 # exclude/double check studies with negative eigen values that make the matrix not positive definite
 dat_2 <- dat_2[-grep("Ashraf", dat_2$Study),]
-dat_2 <- dat_2[-grep("Waki&Yoshinaga", dat_2$Study),]
-dat_2 <- dat_2[-grep("Souto et al. 2015. VetMicrobiol.", dat_2$Study),]
+#dat_2 <- dat_2[-grep("Waki&Yoshinaga", dat_2$Study),]
+#dat_2 <- dat_2[-grep("Souto et al. 2015. VetMicrobiol.", dat_2$Study),]
 #dat_2 <- dat_2[-grep("Purcell", dat_2$Study),] Variance is low but everything checks out for Purcell et al 2016
-dat_2 <- dat_2[-grep("Bradley", dat_2$Study),]
+#dat_2 <- dat_2[-grep("Bradley", dat_2$Study),]
 dat_2 <- dat_2[-grep("Doublet", dat_2$Study),]
 #dat_2 <- dat_2[-grep("Naggar and Paxton. 2020. Microbial Biotechnology", dat_2$Study),] # variance may be low because Z score considers cage effect (30 bees x cage in 3 cages x treatment) but I don't know what to report as sample size. For now, I have dialed it back from 90 to 30 and this makes all eigen values positive.
 
