@@ -34,7 +34,7 @@ Read in data
 dat <- read.csv("../data/MA_dat_08-05-2021.csv", header = T, sep = ",")
 
 # subset data that have a "variation type". We'll parse based on variation type below
-dat <- dat[-which(is.na(dat$Variation.Type) == TRUE),]
+#dat <- dat[-which(is.na(dat$Variation.Type) == TRUE),]
 dat <- subset(dat, select = -c(Data_source,Comment)) 
 colnames(dat)
   
@@ -110,7 +110,7 @@ levels(as.factor(dat$Variation.Type))
 ```{r}
 nrow(dat)
 
-accepted_var <- c("SE", "SD", "CI", "Wald CI", "IQ", "OR", "t", "Z", "Z_reg")
+accepted_var <- c("SE", "SD", "CI", "Wald CI", "IQ", "OR", "t", "Z", "Z_reg", "F_X")
 dat <- dat[which(dat$Variation.Type %in% accepted_var),]
 
 nrow(dat)
@@ -451,12 +451,16 @@ Neg_eigen_2 %>%
 Based on these eigenvalues, we tentatively remove the studies/experiments that cause the most trouble. Some we know have issues with reporting N, other we need to go back to and double check
 ```{r var-covar-matrix}
 # exclude studies with negative eigenvalues that make the matrix not positive definite
-dat_1 <- dat_1[-grep("Ashraf", dat_1$Study),]
-dat_1 <- dat_1[-grep("Pochini", dat_1$Study),]
+dat_1 <- dat_1[-grep("Ashraf et al. 2017 Environ Sci Pollut Res", dat_1$Study),]
+dat_1 <- dat_1[-grep("Pochini and Hoverman. 2017. Environmental Pollution", dat_1$Study),]
+dat_1 <- dat_1[-grep("Schluter-Vorberg et al. 2017. Aquatic Toxicology", dat_1$Study),]
 dat_1 <- dat_1[-grep("Shostak et al. 2015. Journal of Parasitology", dat_1$Study),]
+dat_1 <- dat_1[-grep("Waki & Yoshinaga 2015. FishPathology", dat_1$Study),]
+dat_1 <- dat_1[-grep("Civitello et al. 2020. Proc B", dat_1$Study),]
+dat_1 <- dat_1[-grep("Waki&Yoshinaga. 2013. Fish Sci", dat_1$Study),]
 
 # Civitello et al. 2020 has relatively high covariances for uninfected demographic effects of resource limitation because the variance in the control is extremely low. this results in negative eigenvalues.For now, I'm removing the experiment.
-dat_1 <- dat_1[-grep(121, dat_1$Experiment),]
+#dat_1 <- dat_1[-grep(121, dat_1$Experiment),]
 
 varcovmat_1 = matrix(0, nrow = dim(dat_1)[1], ncol = dim(dat_1)[1])
 
@@ -471,12 +475,14 @@ for (i in 1:dim(dat_1)[1]) {
 }
 
 # exclude/double check studies with negative eigenvalues that make the matrix not positive definite
-dat_2 <- dat_2[-grep("Ashraf", dat_2$Study),]
-#dat_2 <- dat_2[-grep("Waki&Yoshinaga", dat_2$Study),]
-#dat_2 <- dat_2[-grep("Souto et al. 2015. VetMicrobiol.", dat_2$Study),]
-#dat_2 <- dat_2[-grep("Purcell", dat_2$Study),] Variance is low but everything checks out for Purcell et al 2016
-#dat_2 <- dat_2[-grep("Bradley", dat_2$Study),]
-dat_2 <- dat_2[-grep("Doublet", dat_2$Study),]
+dat_2 <- dat_2[-grep("Ashraf et al. 2017 Environ Sci Pollut Res", dat_2$Study),]
+dat_2 <- dat_2[-grep("Schluter-Vorberg et al. 2017. Aquatic Toxicology", dat_2$Study),]
+dat_2 <- dat_2[-grep("Waki&Yoshinaga. 2013. Fish Sci", dat_2$Study),]
+dat_2 <- dat_2[-grep("Souto et al. 2015. VetMicrobiol.", dat_2$Study),]
+dat_2 <- dat_2[-grep("Purcell et al. 2016 J Fish Diseases", dat_2$Study),] #Variance is low but everything checks out for Purcell et al 2016
+dat_2 <- dat_2[-grep("Bradley et al. 2019. Plos One", dat_2$Study),]
+dat_2 <- dat_2[-grep("Carrington et al. 2013. PLOS NegTropDiseases", dat_2$Study),]
+#dat_2 <- dat_2[-grep("Doublet", dat_2$Study),]
 #dat_2 <- dat_2[-grep("Naggar and Paxton. 2020. Microbial Biotechnology", dat_2$Study),] # variance may be low because Z score considers cage effect (30 bees x cage in 3 cages x treatment) but I don't know what to report as sample size. For now, I have dialed it back from 90 to 30 and this makes all eigen values positive.
 
 varcovmat_2 = matrix(0, nrow = dim(dat_2)[1], ncol = dim(dat_2)[1])
@@ -513,6 +519,7 @@ for (i in 1:dim(dat_2_byHost)[1]) {
 d_stats <-
   data.frame(
     stat = c(
+      "Number of papers",
       "Number of effects",
       "Number of experiments",
       "Number of arthropod species",
@@ -539,6 +546,7 @@ d_stats <-
       "Number of fecundity effects"
     ),
     Question_1 = c(
+      length(unique(dat_1$Study)),
       length(dat_1$g),
       length(unique(dat_1$Experiment)),
       length(unique(dat_1$Host[which(dat_1$Host.type == "Arthropod")])),
@@ -574,6 +582,7 @@ d_stats <-
       length(dat_1$ID[which(dat_1$Trait.type == "Fecundity")])
     ),
     Question_2 = c(
+      length(unique(dat_2$Study)),
       length(dat_2$g),
       length(unique(dat_2$Experiment)),
       length(unique(dat_2$Host[which(dat_2$Host.type == "Arthropod")])),
