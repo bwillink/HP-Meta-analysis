@@ -31,7 +31,7 @@ lapply(x, function(y) {
 
 Read in data
 ```{r read-data}
-dat <- read.csv("../data/MA_dat_05-08-2021.csv", header = T, sep = ",")
+dat <- read.csv("../data/MA_dat_08-05-2021.csv", header = T, sep = ",")
 
 # subset data that have a "variation type". We'll parse based on variation type below
 dat <- dat[-which(is.na(dat$Variation.Type) == TRUE),]
@@ -88,13 +88,13 @@ dat$Variation.Type[which(dat$Variation.Type == "Median_Min_Max")] <- "SD"
 levels(as.factor(dat$Variation.Type))
 ```
 
-## Median, min, max, and IQ range to mean
+## Median and IQ range to mean 
 ```{r}
 non_par <- dat[which(dat$Variation.Type == "Median_IQ"),]
 
-# Estimate mean for control and treatment from median, maximum and minimum
-non_par$Estimated_Mean_C <- (non_par$Lwr_C + 2 * non_par$Mean_C + non_par$Upr_C) / 4
-non_par$Estimated_Mean_X <- (non_par$Lwr_X + 2 * non_par$Mean_X + non_par$Upr_X) / 4
+# Estimate mean for control and treatment from median and IQ range
+non_par$Estimated_Mean_C <- (non_par$Lwr_C + non_par$Mean_C + non_par$Upr_C) / 3
+non_par$Estimated_Mean_X <- (non_par$Lwr_X + non_par$Mean_X + non_par$Upr_X) / 3
 
 # overwrite dat
 dat$Mean_C[which(dat$Variation.Type == "Median_IQ")] <- non_par$Estimated_Mean_C 
@@ -324,7 +324,7 @@ dat$var.g <- (dat$J ^ 2) * dat$var.d
 Filter experiments with both epidemiological and infected demographic effects
 ```{r divide-datasets}
 # For now, get rid of NAs
-dat <- dat[(is.na(dat$d)==F),]
+dat <- dat[(is.na(dat$d) == F),]
 
 # How many experiments do we have?
 Exps <- unique(dat$Experiment)
@@ -357,8 +357,8 @@ dat_2 <- dat_2[which(dat_2$Trait.category == "Epidemiological" | dat_2$Trait.cat
 This code produces a variance-covariance of sampling errors matrix, n x n, with n = number of effect sizes. It requires the dataset (dat), Hedge's g (g), and the variance of Hedge's g (var.g) to be defined above. It uses "Experiment", "Level_C", "Trait", "N_C", and "N_X" columns.
 
 
-### Identify negative eigen values
-First, we find out which studies have negative eigen values in their variance-covar matrix. This means covariance between treatment effects with the same control is larger than variance and it's an indicator of suspiciously low variance and potentially an incorrectly reported N or an error while digitizing data.
+### Identify negative eigenvalues
+First, we find out which studies have negative eigenvalues in their variance-covar matrix. This means covariance between treatment effects with the same control is larger than variance and it's an indicator of suspiciously low variance and potentially an incorrectly reported N or an error while digitizing data.
 
 For data set 1
 ```{r check-var-covar_1}
@@ -367,7 +367,7 @@ studies_to_check <- c()
 negative_eigen <- c()
 
 for (k in studies_1) {
-  dat_study <- dat_1[which (dat_1$Study == k),]
+  dat_study <- dat_1[which(dat_1$Study == k),]
   varcovmat = matrix(0,
                      nrow = dim(dat_study)[1],
                      ncol = dim(dat_study)[1])
@@ -389,7 +389,7 @@ for (k in studies_1) {
   }
   
   val <- eigen(varcovmat)
-  for (m in 1:length(val$values)){
+  for (m in 1:length(val$values)) {
     if (val$values[m] < 0) {
     studies_to_check <- append(studies_to_check, k)
     negative_eigen <- append(negative_eigen, val$values[m])
@@ -411,7 +411,7 @@ studies_to_check <- c()
 negative_eigen <- c()
 
 for (k in studies_2) {
-  dat_study <- dat_2[which (dat_2$Study == k),]
+  dat_study <- dat_2[which(dat_2$Study == k),]
   varcovmat = matrix(0,
                      nrow = dim(dat_study)[1],
                      ncol = dim(dat_study)[1])
@@ -433,7 +433,7 @@ for (k in studies_2) {
   }
   
   val <- eigen(varcovmat)
-  for (m in 1:length(val$values)){
+  for (m in 1:length(val$values)) {
     if (val$values[m] < 0) {
     studies_to_check <- append(studies_to_check, k)
     negative_eigen <- append(negative_eigen, val$values[m])
@@ -448,29 +448,29 @@ Neg_eigen_2 %>%
   kable_material(c("striped", "hover"), full_width = F)
 ```
 
-Based on these eigen values, we tentatively remove the studies/experiments that cause the most trouble. Some we know have issues with reporting N, other we need to go back to and double check
+Based on these eigenvalues, we tentatively remove the studies/experiments that cause the most trouble. Some we know have issues with reporting N, other we need to go back to and double check
 ```{r var-covar-matrix}
-# exclude studies with negative eigen values that make the matrix not positive definite
+# exclude studies with negative eigenvalues that make the matrix not positive definite
 dat_1 <- dat_1[-grep("Ashraf", dat_1$Study),]
 dat_1 <- dat_1[-grep("Pochini", dat_1$Study),]
 dat_1 <- dat_1[-grep("Shostak et al. 2015. Journal of Parasitology", dat_1$Study),]
 
-# Civitello et al 2020 has relatively high covariances for uninfected demographic effects of resource limitation because the variance in the control is extremely low. this results in negative eigen values.For now, I'm removing the experiment.
+# Civitello et al. 2020 has relatively high covariances for uninfected demographic effects of resource limitation because the variance in the control is extremely low. this results in negative eigenvalues.For now, I'm removing the experiment.
 dat_1 <- dat_1[-grep(121, dat_1$Experiment),]
 
-varcovmat_1 = matrix(0, nrow=dim(dat_1)[1], ncol=dim(dat_1)[1])
+varcovmat_1 = matrix(0, nrow = dim(dat_1)[1], ncol = dim(dat_1)[1])
 
-for(i in 1:dim(dat_1)[1]){
-  for(j in 1:dim(dat_1)[1]){
-    if(i == j){varcovmat_1[i,j] = dat_1$var.g[i]}else{
-      if(dat_1[i, "Experiment"] == dat_1[j, "Experiment"] & dat_1[i, "Level_C"] == dat_1[j, "Level_C"] & dat_1[i, "Trait"] == dat_1[j, "Trait"] & dat_1[i, "Trait.category"] == dat_1[j, "Trait.category"]){
+for (i in 1:dim(dat_1)[1]) {
+  for (j in 1:dim(dat_1)[1]) {
+    if (i == j) {varcovmat_1[i,j] = dat_1$var.g[i]}else{
+      if (dat_1[i, "Experiment"] == dat_1[j, "Experiment"] & dat_1[i, "Level_C"] == dat_1[j, "Level_C"] & dat_1[i, "Trait"] == dat_1[j, "Trait"] & dat_1[i, "Trait.category"] == dat_1[j, "Trait.category"]) {
         varcovmat_1[i,j] = 1/dat_1[i,"N_C"] + dat_1$g[i]*dat_1$g[j]/(dat_1[i,"N_C"] + dat_1[i,"N_X"] + dat_1[j,"N_X"]) 
       }
     }
   }
 }
 
-# exclude/double check studies with negative eigen values that make the matrix not positive definite
+# exclude/double check studies with negative eigenvalues that make the matrix not positive definite
 dat_2 <- dat_2[-grep("Ashraf", dat_2$Study),]
 #dat_2 <- dat_2[-grep("Waki&Yoshinaga", dat_2$Study),]
 #dat_2 <- dat_2[-grep("Souto et al. 2015. VetMicrobiol.", dat_2$Study),]
@@ -479,12 +479,12 @@ dat_2 <- dat_2[-grep("Ashraf", dat_2$Study),]
 dat_2 <- dat_2[-grep("Doublet", dat_2$Study),]
 #dat_2 <- dat_2[-grep("Naggar and Paxton. 2020. Microbial Biotechnology", dat_2$Study),] # variance may be low because Z score considers cage effect (30 bees x cage in 3 cages x treatment) but I don't know what to report as sample size. For now, I have dialed it back from 90 to 30 and this makes all eigen values positive.
 
-varcovmat_2 = matrix(0, nrow=dim(dat_2)[1], ncol=dim(dat_2)[1])
+varcovmat_2 = matrix(0, nrow = dim(dat_2)[1], ncol = dim(dat_2)[1])
 
-for(i in 1:dim(dat_2)[1]){
-  for(j in 1:dim(dat_2)[1]){
-    if(i == j){varcovmat_2[i,j] = dat_2$var.g[i]}else{
-      if(dat_2[i, "Experiment"] == dat_2[j, "Experiment"] & dat_2[i, "Level_C"] == dat_2[j, "Level_C"] & dat_2[i, "Trait"] == dat_2[j, "Trait"] & dat_2[i, "Trait.category"] == dat_2[j, "Trait.category"]){
+for (i in 1:dim(dat_2)[1]) {
+  for (j in 1:dim(dat_2)[1]) {
+    if (i == j) {varcovmat_2[i,j] = dat_2$var.g[i]}else{
+      if (dat_2[i, "Experiment"] == dat_2[j, "Experiment"] & dat_2[i, "Level_C"] == dat_2[j, "Level_C"] & dat_2[i, "Trait"] == dat_2[j, "Trait"] & dat_2[i, "Trait.category"] == dat_2[j, "Trait.category"]) {
         varcovmat_2[i,j] = 1/dat_2[i,"N_C"] + dat_2$g[i]*dat_2$g[j]/(dat_2[i,"N_C"] + dat_2[i,"N_X"] + dat_2[j,"N_X"]) 
       }
     }
@@ -493,14 +493,14 @@ for(i in 1:dim(dat_2)[1]){
 
 
 # For now remove rare host types to check interaction with host
-dat_2_byHost <-dat_2[which(dat_2$Host.type == "Arthropod" | dat_2$Host.type == "Mollusc" | dat_2$Host.type == "Fish" | dat_2$Host.type == "Amphibian"), ]
+dat_2_byHost <- dat_2[which(dat_2$Host.type == "Arthropod" | dat_2$Host.type == "Mollusc" | dat_2$Host.type == "Fish" | dat_2$Host.type == "Amphibian"), ]
 
-varcovmat_2_byHost = matrix(0, nrow=dim(dat_2_byHost)[1], ncol=dim(dat_2_byHost)[1])
+varcovmat_2_byHost = matrix(0, nrow = dim(dat_2_byHost)[1], ncol = dim(dat_2_byHost)[1])
 
-for(i in 1:dim(dat_2_byHost)[1]){
-  for(j in 1:dim(dat_2_byHost)[1]){
-    if(i == j){varcovmat_2_byHost[i,j] = dat_2_byHost$var.g[i]}else{
-      if(dat_2_byHost[i, "Experiment"] == dat_2_byHost[j, "Experiment"] & dat_2_byHost[i, "Level_C"] == dat_2_byHost[j, "Level_C"] & dat_2_byHost[i, "Trait"] == dat_2_byHost[j, "Trait"] & dat_2_byHost[i, "Trait.category"] == dat_2_byHost[j, "Trait.category"]){
+for (i in 1:dim(dat_2_byHost)[1]) {
+  for (j in 1:dim(dat_2_byHost)[1]) {
+    if (i == j) {varcovmat_2_byHost[i,j] = dat_2_byHost$var.g[i]}else{
+      if (dat_2_byHost[i, "Experiment"] == dat_2_byHost[j, "Experiment"] & dat_2_byHost[i, "Level_C"] == dat_2_byHost[j, "Level_C"] & dat_2_byHost[i, "Trait"] == dat_2_byHost[j, "Trait"] & dat_2_byHost[i, "Trait.category"] == dat_2_byHost[j, "Trait.category"]) {
         varcovmat_2_byHost[i,j] = 1/dat_2_byHost[i,"N_C"] + dat_2_byHost$g[i]*dat_2_byHost$g[j]/(dat_2_byHost[i,"N_C"] + dat_2_byHost[i,"N_X"] + dat_2_byHost[j,"N_X"]) 
       }
     }

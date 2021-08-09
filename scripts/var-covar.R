@@ -14,11 +14,11 @@ var_gs = dat[,"Experiment"]
 # requires the dataset (dat), Hedge's gs (gs), and var(g) (var_gs) to be defined above
 # Uses "Experiment", "Level_C", "N_C", and "N_X" columns of AV and BW's dataset
 
-varcovmat = matrix(0, nrow=dim(dat)[1], ncol=dim(dat)[1])
-for(i in 1:dim(dat)[1]){
-  for(j in 1:dim(dat)[1]){
-    if(i == j){varcovmat[i,j] = var_gs[i]}else{
-      if(dat[i, "Experiment"] == dat[j, "Experiment"] & dat[i, "Level_C"] == dat[j, "Level_C"]){
+varcovmat = matrix(0, nrow = dim(dat)[1], ncol = dim(dat)[1])
+for (i in 1:dim(dat)[1]) {
+  for (j in 1:dim(dat)[1]) {
+    if (i == j) {varcovmat[i,j] = var_gs[i]}else {
+      if (dat[i, "Experiment"] == dat[j, "Experiment"] & dat[i, "Level_C"] == dat[j, "Level_C"]) {
         varcovmat[i,j] = 1/dat[i,"N_C"] + gs[i]*gs[j]/(dat[i,"N_C"] + dat[j,"N_C"] + dat[j,"N_X"]) 
       }
     }
