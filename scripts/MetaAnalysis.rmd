@@ -110,7 +110,7 @@ levels(as.factor(dat$Variation.Type))
 ```{r}
 nrow(dat)
 
-accepted_var <- c("SE", "SD", "CI", "Wald CI", "IQ", "OR", "t", "Z", "Z_reg", "F_X")
+accepted_var <- c("SE", "SD", "CI", "Wald CI", "IQ", "OR")
 dat <- dat[which(dat$Variation.Type %in% accepted_var),]
 
 nrow(dat)
@@ -388,6 +388,8 @@ for (k in studies_1) {
     }
   }
   
+
+  
   val <- eigen(varcovmat)
   for (m in 1:length(val$values)) {
     if (val$values[m] < 0) {
@@ -456,11 +458,10 @@ dat_1 <- dat_1[-grep("Pochini and Hoverman. 2017. Environmental Pollution", dat_
 dat_1 <- dat_1[-grep("Schluter-Vorberg et al. 2017. Aquatic Toxicology", dat_1$Study),]
 dat_1 <- dat_1[-grep("Shostak et al. 2015. Journal of Parasitology", dat_1$Study),]
 dat_1 <- dat_1[-grep("Waki & Yoshinaga 2015. FishPathology", dat_1$Study),]
-dat_1 <- dat_1[-grep("Civitello et al. 2020. Proc B", dat_1$Study),]
 dat_1 <- dat_1[-grep("Waki&Yoshinaga. 2013. Fish Sci", dat_1$Study),]
 
 # Civitello et al. 2020 has relatively high covariances for uninfected demographic effects of resource limitation because the variance in the control is extremely low. this results in negative eigenvalues.For now, I'm removing the experiment.
-#dat_1 <- dat_1[-grep(121, dat_1$Experiment),]
+dat_1 <- dat_1[-grep(121, dat_1$Experiment),]
 
 varcovmat_1 = matrix(0, nrow = dim(dat_1)[1], ncol = dim(dat_1)[1])
 
@@ -482,8 +483,6 @@ dat_2 <- dat_2[-grep("Souto et al. 2015. VetMicrobiol.", dat_2$Study),]
 dat_2 <- dat_2[-grep("Purcell et al. 2016 J Fish Diseases", dat_2$Study),] #Variance is low but everything checks out for Purcell et al 2016
 dat_2 <- dat_2[-grep("Bradley et al. 2019. Plos One", dat_2$Study),]
 dat_2 <- dat_2[-grep("Carrington et al. 2013. PLOS NegTropDiseases", dat_2$Study),]
-#dat_2 <- dat_2[-grep("Doublet", dat_2$Study),]
-#dat_2 <- dat_2[-grep("Naggar and Paxton. 2020. Microbial Biotechnology", dat_2$Study),] # variance may be low because Z score considers cage effect (30 bees x cage in 3 cages x treatment) but I don't know what to report as sample size. For now, I have dialed it back from 90 to 30 and this makes all eigen values positive.
 
 varcovmat_2 = matrix(0, nrow = dim(dat_2)[1], ncol = dim(dat_2)[1])
 
