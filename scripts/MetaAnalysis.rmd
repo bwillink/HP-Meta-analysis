@@ -16,7 +16,7 @@ Load packages
 ```{r load-packages, message=FALSE, results='hide'}
 x <-
   c(
-    "metafor", "kableExtra")
+    "metafor", "kableExtra", "Matrix")
 
 lapply(x, function(y) {
   # check if installed, if not install
@@ -119,18 +119,6 @@ nrow(dat)
 N <- nrow(dat)
 ```
 
-## Standardize survival/mortality
-```{r standardize-survival}
-# which studies report mortality? 
-mort <- grep(pattern = "[M,m]ort", x = dat$Trait)
-
-# if the study reports mortality replace success for failure
-for (i in mort) {
-  dat$Success_C[i] <- dat$N_C[i] - dat$Success_C[i]
-  dat$Success_X[i] <- dat$N_X[i] - dat$Success_X[i]
-  dat$Trait[i] <- "Survival (converted)"
-   }
-```
 # Getting effect sizes
 
 ## Calculate OR and approximate variance from contingency tables
@@ -320,6 +308,15 @@ dat$g <- dat$J * dat$d
 dat$var.g <- (dat$J ^ 2) * dat$var.d
 ```
 
+## flip effect sizes for remaining mortality effects
+```{r standardize-survival}
+mort <- grep(pattern = "[M,m]ort", x = dat$Trait)
+
+for(i in mort){
+  dat$g[i] <- -dat$g[i]
+}
+```
+
 # Prepare data
 Filter experiments with both epidemiological and infected demographic effects
 ```{r divide-datasets}
@@ -388,8 +385,6 @@ for (k in studies_1) {
     }
   }
   
-
-  
   val <- eigen(varcovmat)
   for (m in 1:length(val$values)) {
     if (val$values[m] < 0) {
@@ -450,17 +445,16 @@ Neg_eigen_2 %>%
   kable_material(c("striped", "hover"), full_width = F)
 ```
 
-Based on these eigenvalues, we tentatively remove the studies/experiments that cause the most trouble. Some we know have issues with reporting N, other we need to go back to and double check
-```{r var-covar-matrix}
-# exclude studies with negative eigenvalues that make the matrix not positive definite
-dat_1 <- dat_1[-grep("Ashraf et al. 2017 Environ Sci Pollut Res", dat_1$Study),]
-dat_1 <- dat_1[-grep("Pochini and Hoverman. 2017. Environmental Pollution", dat_1$Study),]
-dat_1 <- dat_1[-grep("Schluter-Vorberg et al. 2017. Aquatic Toxicology", dat_1$Study),]
-dat_1 <- dat_1[-grep("Shostak et al. 2015. Journal of Parasitology", dat_1$Study),]
-dat_1 <- dat_1[-grep("Waki & Yoshinaga 2015. FishPathology", dat_1$Study),]
-dat_1 <- dat_1[-grep("Waki&Yoshinaga. 2013. Fish Sci", dat_1$Study),]
+Based on these eigenvalues, we looked back at the studies/experiments and determined if they had issues with reporting N or variance. We decided to remove two such studies for data set 1 (Ashraf et al. 2017 and Shostak et al. 2015) and one such study for data set 2 (Ashraf et al. 2017). 
 
-# Civitello et al. 2020 has relatively high covariances for uninfected demographic effects of resource limitation because the variance in the control is extremely low. this results in negative eigenvalues.For now, I'm removing the experiment.
+As we found no errors or causes of concern for other studies with barely negative eigenvalues, we are forcing the var-covar matrices to the nearest positive definite values, while keeping the diagonals (var) to the estimated values and modifying only the expected covariances.
+
+Also for now we are excluding Experiment 121 from Civitello et al 2020 Proc. B. This study has a relatively low variance for the control of the uninfected demographic fecundity effects, which results in a negative eigen value.
+
+```{r var-covar-matrix}
+# exclude suspicious studies with highly negative eigenvalues
+dat_1 <- dat_1[-grep("Ashraf et al. 2017 Environ Sci Pollut Res", dat_1$Study),]
+dat_1 <- dat_1[-grep("Shostak et al. 2015. Journal of Parasitology", dat_1$Study),]
 dat_1 <- dat_1[-grep(121, dat_1$Experiment),]
 
 varcovmat_1 = matrix(0, nrow = dim(dat_1)[1], ncol = dim(dat_1)[1])
@@ -475,13 +469,14 @@ for (i in 1:dim(dat_1)[1]) {
   }
 }
 
-# exclude/double check studies with negative eigenvalues that make the matrix not positive definite
+# correct negative eigens in the few studies with large covar to var ratios
+varcovmat_1_PD <- nearPD(varcovmat_1,  keepDiag = TRUE)
+
+# exclude suspicious studies with highly negative eigenvalues
 dat_2 <- dat_2[-grep("Ashraf et al. 2017 Environ Sci Pollut Res", dat_2$Study),]
-dat_2 <- dat_2[-grep("Schluter-Vorberg et al. 2017. Aquatic Toxicology", dat_2$Study),]
-dat_2 <- dat_2[-grep("Waki&Yoshinaga. 2013. Fish Sci", dat_2$Study),]
-dat_2 <- dat_2[-grep("Souto et al. 2015. VetMicrobiol.", dat_2$Study),]
-dat_2 <- dat_2[-grep("Purcell et al. 2016 J Fish Diseases", dat_2$Study),] #Variance is low but everything checks out for Purcell et al 2016
-dat_2 <- dat_2[-grep("Bradley et al. 2019. Plos One", dat_2$Study),]
+
+
+# Carrington et al. 2013 has extremely large sampling variance for a parasite prevalence effect. DOUBLE CHECK!!!
 dat_2 <- dat_2[-grep("Carrington et al. 2013. PLOS NegTropDiseases", dat_2$Study),]
 
 varcovmat_2 = matrix(0, nrow = dim(dat_2)[1], ncol = dim(dat_2)[1])
@@ -496,6 +491,8 @@ for (i in 1:dim(dat_2)[1]) {
   }
 }  
 
+# correct eigenvalues in the few studies with large covar to var ratios
+varcovmat_2_PD <- nearPD(varcovmat_2, keepDiag = TRUE)
 
 # For now remove rare host types to check interaction with host
 dat_2_byHost <- dat_2[which(dat_2$Host.type == "Arthropod" | dat_2$Host.type == "Mollusc" | dat_2$Host.type == "Fish" | dat_2$Host.type == "Amphibian"), ]
@@ -511,6 +508,9 @@ for (i in 1:dim(dat_2_byHost)[1]) {
     }
   }
 }
+
+# correct eigenvalues in the few studies with large covar to var ratios
+varcovmat_2_byHost_PD <- nearPD(varcovmat_2_byHost,  keepDiag = TRUE)
 ```
 
 # Descriptive statistics
@@ -632,7 +632,7 @@ d_stats %>%
 Q1m1 <-
   rma.mv(
     abs(g) ~ 1,
-    V = varcovmat_1,
+    V = varcovmat_1_PD$mat,
     random = list( ~ 1 |
                      ID, ~ 1 | Experiment, ~ 1 | Parasite),
     data = dat_1,
@@ -648,7 +648,7 @@ summary(Q1m1)
 Q1m2 <-
   rma.mv(
     abs(g) ~ Trait.category -1,
-    V = varcovmat_1,
+    V = varcovmat_1_PD$mat,
     random = list( ~ 1 |
                      ID, ~ 1 | Experiment, ~ 1 | Parasite),
     data = dat_1,
@@ -663,7 +663,7 @@ summary(Q1m2)
 Q1m3 <-
   rma.mv(
     abs(g) ~ Trait.category:Gradient.category -1,
-    V = varcovmat_1,
+    V = varcovmat_1_PD$mat,
     random = list( ~ 1 |
                      ID, ~ 1 | Experiment, ~ 1 | Parasite),
     data = dat_1,
@@ -678,7 +678,7 @@ summary(Q1m3)
 Q1m4 <-
   rma.mv(
     abs(g) ~ Trait.category:Host.type -1,
-    V = varcovmat_1,
+    V = varcovmat_1_PD$mat,
     random = list( ~ 1 |
                      ID, ~ 1 | Experiment, ~ 1 | Parasite),
     data = dat_1,
@@ -688,13 +688,28 @@ Q1m4 <-
 summary(Q1m4)
 ```
 
+### Trait category x Trait type (mortality or fecundity) interaction
+```{r Q1-Trait-x-type}
+Q1m5 <-
+  rma.mv(
+    abs(g) ~ Trait.category:Trait.type -1,
+    V = varcovmat_1_PD$mat,
+    random = list( ~ 1 |
+                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_1,
+    method = "REML"
+  )
+
+summary(Q1m5)
+```
+
 ## Question 2 - Do resistance and tolerance traits have different sensitivity to stressors
 ### Null model
 ```{r Q2-null}
 Q2m1 <-
   rma.mv(
     abs(g) ~ 1,
-    V = varcovmat_2,
+    V = varcovmat_2_PD$mat,
     random = list( ~ 1 |
                      ID, ~ 1 | Experiment, ~ 1 | Parasite),
     data = dat_2,
@@ -710,7 +725,7 @@ summary(Q2m1)
 Q2m2 <-
   rma.mv(
     abs(g) ~ Trait.category -1,
-    V = varcovmat_2,
+    V = varcovmat_2_PD$mat,
     random = list( ~ 1 |
                      ID, ~ 1 | Experiment, ~ 1 | Parasite),
     data = dat_2,
@@ -725,7 +740,7 @@ summary(Q2m2)
 Q2m3 <-
   rma.mv(
     abs(g) ~ Trait.category:Gradient.category -1,
-    V = varcovmat_2,
+    V = varcovmat_2_PD$mat,
     random = list( ~ 1 |
                      ID, ~ 1 | Experiment, ~ 1 | Parasite),
     data = dat_2,
@@ -741,7 +756,7 @@ summary(Q2m3)
 Q2m4 <-
   rma.mv(
     abs(g) ~ Trait.category:Host.type -1,
-    V = varcovmat_2_byHost,
+    V = varcovmat_2_byHost_PD$mat,
     random = list( ~ 1 |
                      ID, ~ 1 | Experiment, ~ 1 | Parasite),
     data = dat_2_byHost,
@@ -749,4 +764,19 @@ Q2m4 <-
 )
 
 summary(Q2m4)
+```
+
+### Trait type x Gradient category interaction
+```{r Q2-Trait-x-Host}
+Q2m5 <-
+  rma.mv(
+    abs(g) ~ Trait.type:Gradient.category -1,
+    V = varcovmat_2_PD$mat,
+    random = list( ~ 1 |
+                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_2,
+    method = "REML",
+)
+
+summary(Q2m5)
 ```
