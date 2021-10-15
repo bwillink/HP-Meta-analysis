@@ -633,8 +633,7 @@ Q1m1 <-
   rma.mv(
     abs(g) ~ 1,
     V = varcovmat_1_PD$mat,
-    random = list( ~ 1 |
-                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
     data = dat_1,
     method = "REML"
   )
@@ -643,14 +642,14 @@ summary(Q1m1)
 ```
 
 
-## Single fixed effect
+## effects in uninfected vs infected hosts, do they differe between survival vs fecundity?
 ```{r Q1-single-fixed}
 Q1m2 <-
   rma.mv(
-    abs(g) ~ Trait.category -1,
+    abs(g) ~ Trait.category * Trait.type ,
     V = varcovmat_1_PD$mat,
     random = list( ~ 1 |
-                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
+                     as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
     data = dat_1,
     method = "REML"
   )
@@ -658,19 +657,34 @@ Q1m2 <-
 summary(Q1m2)
 ```
 
-### Trait category x Gradient category interaction
-```{r Q1-Trait-x-Gradient}
+## effects in uninfected vs infected hosts, do they differe between survival vs fecundity, once we account for type of stress
+```{r Q1-single-fixed}
 Q1m3 <-
   rma.mv(
-    abs(g) ~ Trait.category:Gradient.category -1,
+    abs(g) ~ Trait.category : Trait.type : Gradient.category -1,
     V = varcovmat_1_PD$mat,
     random = list( ~ 1 |
-                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
+                     as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
     data = dat_1,
     method = "REML"
   )
 
 summary(Q1m3)
+```
+
+## effects in  survival vs fecundity measures of fitness under different types of stress, combining infected and uninfected
+```{r Q1-single-fixed}
+Q1m4 <-
+  rma.mv(
+    abs(g) ~ Trait.type*Gradient.category ,
+    V = varcovmat_1_PD$mat,
+    random = list( ~ 1 |
+                     as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
+    data = dat_1,
+    method = "REML"
+  )
+
+summary(Q1m4)
 ```
 
 ### Trait category x Host type interaction
