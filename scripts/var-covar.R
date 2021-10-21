@@ -2,7 +2,7 @@
 ### Note that this works correctly but produces nonsensical output right now because it uses a dummy column for the
 # Hedge's g and var(g) columns
 setwd("C:/RData")
-dat = read.csv("Multcomp_test.csv")
+dat = read.csv("../data/Multcomp_test.csv")
 head(dat)
 
 # Dummy labeling for the Hedge's g and var(g) columns - ***Current output is meaningless***

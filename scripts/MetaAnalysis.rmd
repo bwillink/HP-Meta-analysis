@@ -330,7 +330,7 @@ Exps <- unique(dat$Experiment)
 dat_1 <- data.frame()
 
 # A data frame of experiments that included Infected demographic and Epidemiological effects
-dat_2 <- data.frame()
+dat_3 <- data.frame()
 
 # populate data sets with corresponding experiments
 for (i in Exps) {
@@ -341,13 +341,16 @@ for (i in Exps) {
   }
   if ("Epidemiological" %in% tmp$Trait.category &
       "Infected demographic" %in% tmp$Trait.category) {
-    dat_2 <- rbind(dat_2, tmp)
+    dat_3 <- rbind(dat_3, tmp)
   }
 }
 
 dat_1 <- dat_1[which(dat_1$Trait.category == "Uninfected demographic" | dat_1$Trait.category == "Infected demographic"),]
 
-dat_2 <- dat_2[which(dat_2$Trait.category == "Epidemiological" | dat_2$Trait.category == "Infected demographic"),]
+dat_3 <- dat_3[which(dat_3$Trait.category == "Epidemiological" | dat_3$Trait.category == "Infected demographic"),]
+
+# A data frame with experiments that include just epidemiological effects
+dat_2 <- dat_3[which(dat_3$Trait.category == "Epidemiological"),]
 ```
 
 ## Variance-covariance of sampling errors matrix (for multiple comparisons)
@@ -400,7 +403,6 @@ Neg_eigen_1 %>%
   kbl() %>%
   kable_material(c("striped", "hover"), full_width = F)
 ```
-
 For data set 2
 ```{r check-var-covar_2}
 studies_2 <- unique(dat_2$Study)
@@ -445,11 +447,55 @@ Neg_eigen_2 %>%
   kable_material(c("striped", "hover"), full_width = F)
 ```
 
-Based on these eigenvalues, we looked back at the studies/experiments and determined if they had issues with reporting N or variance. We decided to remove two such studies for data set 1 (Ashraf et al. 2017 and Shostak et al. 2015) and one such study for data set 2 (Ashraf et al. 2017). 
+For data set 3
+```{r check-var-covar_3}
+studies_3 <- unique(dat_3$Study)
+studies_to_check <- c()
+negative_eigen <- c()
+
+for (k in studies_3) {
+  dat_study <- dat_3[which(dat_3$Study == k),]
+  varcovmat = matrix(0,
+                     nrow = dim(dat_study)[1],
+                     ncol = dim(dat_study)[1])
+  
+  for (i in 1:dim(dat_study)[1]) {
+    for (j in 1:dim(dat_study)[1]) {
+      if (i == j) {
+        varcovmat[i, j] = dat_study$var.g[i]
+      } else{
+        if (dat_study[i, "Experiment"] == dat_study[j, "Experiment"] &
+            dat_study[i, "Level_C"] == dat_study[j, "Level_C"] &
+            dat_study[i, "Trait"] == dat_study[j, "Trait"] &
+            dat_study[i, "Trait.category"] == dat_study[j, "Trait.category"]) {
+          varcovmat[i, j] = 1 / dat_study[i, "N_C"] + dat_study$g[i] * dat_study$g[j] /
+            (dat_study[i, "N_C"] + dat_study[i, "N_X"] + dat_study[j, "N_X"])
+        }
+      }
+    }
+  }
+  
+  val <- eigen(varcovmat)
+  for (m in 1:length(val$values)) {
+    if (val$values[m] < 0) {
+    studies_to_check <- append(studies_to_check, k)
+    negative_eigen <- append(negative_eigen, val$values[m])
+    }
+  }
+}
+    
+Neg_eigen_3 <- data.frame(study = studies_to_check, eigen = negative_eigen)
+
+Neg_eigen_3 %>%
+  kbl() %>%
+  kable_material(c("striped", "hover"), full_width = F)
+```
+
+Based on these eigenvalues, we looked back at the studies/experiments and determined if they had issues with reporting N or variance. We decided to remove two such studies for data set 1 (Ashraf et al. 2017 and Shostak et al. 2015) and one such study for data set 2 & 3 (Ashraf et al. 2017). 
 
 As we found no errors or causes of concern for other studies with barely negative eigenvalues, we are forcing the var-covar matrices to the nearest positive definite values, while keeping the diagonals (var) to the estimated values and modifying only the expected covariances.
 
-Also for now we are excluding Experiment 121 from Civitello et al 2020 Proc. B. This study has a relatively low variance for the control of the uninfected demographic fecundity effects, which results in a negative eigen value.
+Also for now we are excluding Experiment 121 from Civitello et al 2020 Proc. B. This study has a relatively low variance for the control of the uninfected demographic fecundity effects, which results in a negative eigenvalue.
 
 ```{r var-covar-matrix}
 # exclude suspicious studies with highly negative eigenvalues
@@ -475,10 +521,6 @@ varcovmat_1_PD <- nearPD(varcovmat_1,  keepDiag = TRUE)
 # exclude suspicious studies with highly negative eigenvalues
 dat_2 <- dat_2[-grep("Ashraf et al. 2017 Environ Sci Pollut Res", dat_2$Study),]
 
-
-# Carrington et al. 2013 has extremely large sampling variance for a parasite prevalence effect. DOUBLE CHECK!!!
-dat_2 <- dat_2[-grep("Carrington et al. 2013. PLOS NegTropDiseases", dat_2$Study),]
-
 varcovmat_2 = matrix(0, nrow = dim(dat_2)[1], ncol = dim(dat_2)[1])
 
 for (i in 1:dim(dat_2)[1]) {
@@ -489,28 +531,49 @@ for (i in 1:dim(dat_2)[1]) {
       }
     }
   }
+}
+
+# correct negative eigens in the few studies with large covar to var ratios
+varcovmat_2_PD <- nearPD(varcovmat_2,  keepDiag = TRUE)
+
+# exclude suspicious studies with highly negative eigenvalues
+dat_3 <- dat_3[-grep("Ashraf et al. 2017 Environ Sci Pollut Res", dat_3$Study),]
+
+# Carrington et al. 2013 has extremely large sampling variance for a parasite prevalence effect. DOUBLE CHECK!!!
+dat_3 <- dat_3[-grep("Carrington et al. 2013. PLOS NegTropDiseases", dat_3$Study),]
+
+varcovmat_3 = matrix(0, nrow = dim(dat_3)[1], ncol = dim(dat_3)[1])
+
+for (i in 1:dim(dat_3)[1]) {
+  for (j in 1:dim(dat_3)[1]) {
+    if (i == j) {varcovmat_3[i,j] = dat_3$var.g[i]}else{
+      if (dat_3[i, "Experiment"] == dat_3[j, "Experiment"] & dat_3[i, "Level_C"] == dat_3[j, "Level_C"] & dat_3[i, "Trait"] == dat_3[j, "Trait"] & dat_3[i, "Trait.category"] == dat_3[j, "Trait.category"]) {
+        varcovmat_3[i,j] = 1/dat_3[i,"N_C"] + dat_3$g[i]*dat_3$g[j]/(dat_3[i,"N_C"] + dat_3[i,"N_X"] + dat_3[j,"N_X"]) 
+      }
+    }
+  }
 }  
 
 # correct eigenvalues in the few studies with large covar to var ratios
-varcovmat_2_PD <- nearPD(varcovmat_2, keepDiag = TRUE)
+varcovmat_3_PD <- nearPD(varcovmat_3, keepDiag = TRUE)
 
 # For now remove rare host types to check interaction with host
-dat_2_byHost <- dat_2[which(dat_2$Host.type == "Arthropod" | dat_2$Host.type == "Mollusc" | dat_2$Host.type == "Fish" | dat_2$Host.type == "Amphibian"), ]
+dat_3_byHost <- dat_3[which(dat_3$Host.type == "Arthropod" | dat_3$Host.type == "Mollusc" | dat_3$Host.type == "Fish" | dat_3$Host.type == "Amphibian"), ]
 
-varcovmat_2_byHost = matrix(0, nrow = dim(dat_2_byHost)[1], ncol = dim(dat_2_byHost)[1])
+varcovmat_3_byHost = matrix(0, nrow = dim(dat_3_byHost)[1], ncol = dim(dat_3_byHost)[1])
 
-for (i in 1:dim(dat_2_byHost)[1]) {
-  for (j in 1:dim(dat_2_byHost)[1]) {
-    if (i == j) {varcovmat_2_byHost[i,j] = dat_2_byHost$var.g[i]}else{
-      if (dat_2_byHost[i, "Experiment"] == dat_2_byHost[j, "Experiment"] & dat_2_byHost[i, "Level_C"] == dat_2_byHost[j, "Level_C"] & dat_2_byHost[i, "Trait"] == dat_2_byHost[j, "Trait"] & dat_2_byHost[i, "Trait.category"] == dat_2_byHost[j, "Trait.category"]) {
-        varcovmat_2_byHost[i,j] = 1/dat_2_byHost[i,"N_C"] + dat_2_byHost$g[i]*dat_2_byHost$g[j]/(dat_2_byHost[i,"N_C"] + dat_2_byHost[i,"N_X"] + dat_2_byHost[j,"N_X"]) 
+for (i in 1:dim(dat_3_byHost)[1]) {
+  for (j in 1:dim(dat_3_byHost)[1]) {
+    if (i == j) {varcovmat_3_byHost[i,j] = dat_3_byHost$var.g[i]}else{
+      if (dat_3_byHost[i, "Experiment"] == dat_3_byHost[j, "Experiment"] & dat_3_byHost[i, "Level_C"] == dat_3_byHost[j, "Level_C"] & dat_3_byHost[i, "Trait"] == dat_3_byHost[j, "Trait"] & dat_3_byHost[i, "Trait.category"] == dat_3_byHost[j, "Trait.category"]) {
+        varcovmat_3_byHost[i,j] = 1/dat_3_byHost[i,"N_C"] + dat_3_byHost$g[i]*dat_3_byHost$g[j]/(dat_3_byHost[i,"N_C"] + dat_3_byHost[i,"N_X"] + dat_3_byHost[j,"N_X"]) 
       }
     }
   }
 }
 
 # correct eigenvalues in the few studies with large covar to var ratios
-varcovmat_2_byHost_PD <- nearPD(varcovmat_2_byHost,  keepDiag = TRUE)
+varcovmat_3_byHost_PD <- nearPD(varcovmat_3_byHost,  keepDiag = TRUE)
 ```
 
 # Descriptive statistics
@@ -540,7 +603,7 @@ d_stats <-
       "Number of resistance effects",
       "Number of prevalence effects",
       "Number of intensity effects",
-      "Number of tolerance effects",
+      "Number of fitness effects",
       "Number of survival effects",
       "Number of fecundity effects"
     ),
@@ -615,6 +678,42 @@ d_stats <-
       length(dat_2$ID[grep("demographic", dat_2$Trait.category)]),
       length(dat_2$ID[which(dat_2$Trait.type == "Survivorship")]),
       length(dat_2$ID[which(dat_2$Trait.type == "Fecundity")])
+    ),
+    Question_3 = c(
+      length(unique(dat_3$Study)),
+      length(dat_3$g),
+      length(unique(dat_3$Experiment)),
+      length(unique(dat_3$Host[which(dat_3$Host.type == "Arthropod")])),
+      length(unique(dat_3$Host[which(dat_3$Host.type == "Mollusc")])),
+      length(unique(dat_3$Host[which(dat_3$Host.type == "Fish")])),
+      length(unique(dat_3$Host[which(dat_3$Host.type == "Amphibian")])),
+      length(unique(dat_3$Host[which(dat_3$Host.type == "Reptile")])),
+      length(unique(dat_3$Host[which(dat_3$Host.type == "Bird")])),
+      length(unique(dat_3$Host[which(dat_3$Host.type == "Mammal")])),
+      length(unique(dat_3$Parasite[which(dat_3$Parasite.type ==
+                                           "Virus")])),
+      length(unique(dat_3$Parasite[which(dat_3$Parasite.type ==
+                                           "Bacteria")])),
+      length(unique(dat_3$Parasite[which(dat_3$Parasite.type ==
+                                           "Multiple")])),
+      length(unique(dat_3$Parasite[which(dat_3$Parasite.type ==
+                                           "Fungus")])),
+      length(unique(dat_3$Parasite[which(dat_3$Parasite.type ==
+                                           "Protozoan")])),
+      length(unique(dat_3$Parasite[which(dat_3$Parasite.type ==
+                                           "Helminth")])),
+      length(dat_3$Experiment[which(dat_3$Gradient.category ==
+                                      "Environment")]),
+      length(dat_3$Experiment[which(dat_3$Gradient.category ==
+                                      "Pollution")]),
+      length(dat_3$Experiment[which(dat_3$Gradient.category ==
+                                      "Resource")]),
+      length(dat_3$ID[which(dat_3$Trait.category == "Epidemiological")]),
+      length(dat_3$ID[which(dat_3$Trait.type == "Prevalence")]),
+      length(dat_3$ID[which(dat_3$Trait.type == "Intensity")]),
+      length(dat_3$ID[grep("demographic", dat_3$Trait.category)]),
+      length(dat_3$ID[which(dat_3$Trait.type == "Survivorship")]),
+      length(dat_3$ID[which(dat_3$Trait.type == "Fecundity")])
     )
   )
 
@@ -717,7 +816,97 @@ Q1m5 <-
 summary(Q1m5)
 ```
 
-## Question 2 - Do resistance and tolerance traits have different sensitivity to stressors
+## Question 2 - Are resistance traits negatively affected by stressors
+### Null model
+```{r Q2-null}
+Q2m1 <-
+  rma.mv(
+    abs(g) ~ 1,
+    V = varcovmat_2_PD$mat,
+    random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
+    data = dat_2,
+    method = "REML"
+  )
+
+summary(Q2m1)
+```
+
+## does resistance decrease with stress, does it differe between prevalence vs intensity?
+```{r Q2-single-fixed}
+Q2m2 <-
+  rma.mv(
+    abs(g) ~ Trait.type ,
+    V = varcovmat_2_PD$mat,
+    random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
+    data = dat_2,
+    method = "REML"
+  )
+
+summary(Q2m2)
+```
+
+## do they differe between prevalence vs intensity, once we account for type of stress
+```{r Q2-single-fixed}
+Q2m3 <-
+  rma.mv(
+    abs(g) ~ Trait.type : Gradient.category -1,
+    V = varcovmat_2_PD$mat,
+    random = list( ~ 1 |
+                     as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
+    data = dat_2,
+    method = "REML"
+  )
+
+summary(Q2m3)
+```
+
+## effects in  prevalence vs intensity measures of resistance under different types of stress
+```{r Q2-single-fixed}
+Q2m4 <-
+  rma.mv(
+    abs(g) ~ Trait.type*Gradient.category ,
+    V = varcovmat_2_PD$mat,
+    random = list( ~ 1 |
+                     as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
+    data = dat_2,
+    method = "REML"
+  )
+
+summary(Q2m4)
+```
+
+### Trait category x Host type interaction
+```{r Q2-Trait-x-Host}
+Q2m5 <-
+  rma.mv(
+    abs(g) ~ Trait.category:Host.type -1,
+    V = varcovmat_2_PD$mat,
+    random = list( ~ 1 |
+                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_2,
+    method = "REML"
+  )
+
+summary(Q2m5)
+```
+
+### Stress type  x Trait type (prevalence or intensity) interaction
+```{r Q2-Trait-x-type}
+Q2m5 <-
+  rma.mv(
+    abs(g) ~ Gradient.category:Trait.type -1,
+    V = varcovmat_2_PD$mat,
+    random = list( ~ 1 |
+                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_2,
+    method = "REML"
+  )
+
+summary(Q2m5)
+```
+
+
+## Question 3 - Do resistance and tolerance traits have different sensitivity to stressors
 ### Null model
 ```{r Q2-null}
 Q2m1 <-
