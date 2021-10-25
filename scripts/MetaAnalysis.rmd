@@ -745,10 +745,9 @@ summary(Q1m1)
 ```{r Q1-single-fixed}
 Q1m2 <-
   rma.mv(
-    abs(g) ~ Trait.category * Trait.type ,
+    abs(g) ~ Trait.category:Trait.type -1,
     V = varcovmat_1_PD$mat,
-    random = list( ~ 1 |
-                     as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
+    random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
     data = dat_1,
     method = "REML"
   )
@@ -762,8 +761,7 @@ Q1m3 <-
   rma.mv(
     abs(g) ~ Trait.category : Trait.type : Gradient.category -1,
     V = varcovmat_1_PD$mat,
-    random = list( ~ 1 |
-                     as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
+    random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
     data = dat_1,
     method = "REML"
   )
@@ -775,10 +773,9 @@ summary(Q1m3)
 ```{r Q1-single-fixed}
 Q1m4 <-
   rma.mv(
-    abs(g) ~ Trait.type*Gradient.category ,
+    abs(g) ~ Trait.type:Gradient.category -1 ,
     V = varcovmat_1_PD$mat,
-    random = list( ~ 1 |
-                     as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
+    random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
     data = dat_1,
     method = "REML"
   )
@@ -788,27 +785,11 @@ summary(Q1m4)
 
 ### Trait category x Host type interaction
 ```{r Q1-Trait-x-Host}
-Q1m4 <-
+Q1m5 <-
   rma.mv(
     abs(g) ~ Trait.category:Host.type -1,
     V = varcovmat_1_PD$mat,
-    random = list( ~ 1 |
-                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_1,
-    method = "REML"
-  )
-
-summary(Q1m4)
-```
-
-### Trait category x Trait type (mortality or fecundity) interaction
-```{r Q1-Trait-x-type}
-Q1m5 <-
-  rma.mv(
-    abs(g) ~ Trait.category:Trait.type -1,
-    V = varcovmat_1_PD$mat,
-    random = list( ~ 1 |
-                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
     data = dat_1,
     method = "REML"
   )
@@ -835,7 +816,7 @@ summary(Q2m1)
 ```{r Q2-single-fixed}
 Q2m2 <-
   rma.mv(
-    abs(g) ~ Trait.type ,
+    abs(g) ~ Trait.type -1 ,
     V = varcovmat_2_PD$mat,
     random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
     data = dat_2,
@@ -851,8 +832,7 @@ Q2m3 <-
   rma.mv(
     abs(g) ~ Trait.type : Gradient.category -1,
     V = varcovmat_2_PD$mat,
-    random = list( ~ 1 |
-                     as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
+    random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
     data = dat_2,
     method = "REML"
   )
@@ -860,14 +840,14 @@ Q2m3 <-
 summary(Q2m3)
 ```
 
-## effects in  prevalence vs intensity measures of resistance under different types of stress
-```{r Q2-single-fixed}
+
+### Trait type x Host type interaction
+```{r Q2-Trait-x-Host}
 Q2m4 <-
   rma.mv(
-    abs(g) ~ Trait.type*Gradient.category ,
+    abs(g) ~ Trait.type:Host.type -1,
     V = varcovmat_2_PD$mat,
-    random = list( ~ 1 |
-                     as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
+    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
     data = dat_2,
     method = "REML"
   )
@@ -875,111 +855,77 @@ Q2m4 <-
 summary(Q2m4)
 ```
 
-### Trait category x Host type interaction
-```{r Q2-Trait-x-Host}
-Q2m5 <-
-  rma.mv(
-    abs(g) ~ Trait.category:Host.type -1,
-    V = varcovmat_2_PD$mat,
-    random = list( ~ 1 |
-                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_2,
-    method = "REML"
-  )
 
-summary(Q2m5)
-```
-
-### Stress type  x Trait type (prevalence or intensity) interaction
-```{r Q2-Trait-x-type}
-Q2m5 <-
-  rma.mv(
-    abs(g) ~ Gradient.category:Trait.type -1,
-    V = varcovmat_2_PD$mat,
-    random = list( ~ 1 |
-                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_2,
-    method = "REML"
-  )
-
-summary(Q2m5)
-```
-
-
-## Question 3 - Do resistance and tolerance traits have different sensitivity to stressors
+## Question 3 - Do resistance and fitness traits have different sensitivity to stressors
 ### Null model
-```{r Q2-null}
-Q2m1 <-
+```{r Q3-null}
+Q3m1 <-
   rma.mv(
     abs(g) ~ 1,
-    V = varcovmat_2_PD$mat,
-    random = list( ~ 1 |
-                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_2,
+    V = varcovmat_3_PD$mat,
+    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_3,
     method = "REML"
   )
 
-summary(Q2m1)
+summary(Q3m1)
 
 ```
 
 ## Single fixed effect
-```{r Q2-single-fixed}
-Q2m2 <-
+```{r Q3-single-fixed}
+Q3m2 <-
   rma.mv(
     abs(g) ~ Trait.category -1,
-    V = varcovmat_2_PD$mat,
-    random = list( ~ 1 |
-                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_2,
+    V = varcovmat_3_PD$mat,
+    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_3,
     method = "REML"
   )
 
-summary(Q2m2)
+summary(Q3m2)
 ```
 
 ### Trait category x Gradient category interaction
-```{r Q2-Trait-x-Gradient}
-Q2m3 <-
+```{r Q3-Trait-x-Gradient}
+Q3m3 <-
   rma.mv(
     abs(g) ~ Trait.category:Gradient.category -1,
-    V = varcovmat_2_PD$mat,
-    random = list( ~ 1 |
-                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_2,
+    V = varcovmat_3_PD$mat,
+    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_3,
     method = "REML"
   )
 
-summary(Q2m3)
+summary(Q3m3)
+```
+
+### Trait type x Gradient category interaction
+```{r Q3-Trait-x-Host}
+Q3m4 <-
+  rma.mv(
+    abs(g) ~ Trait.type:Gradient.category -1,
+    V = varcovmat_3_PD$mat,
+    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_3,
+    method = "REML",
+)
+
+summary(Q3m4)
 ```
 
 
 ### Trait category x Host type interaction
-```{r Q2-Trait-x-Host}
-Q2m4 <-
+```{r Q3-Trait-x-Host}
+Q3m5 <-
   rma.mv(
     abs(g) ~ Trait.category:Host.type -1,
-    V = varcovmat_2_byHost_PD$mat,
-    random = list( ~ 1 |
-                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_2_byHost,
+    V = varcovmat_3_byHost_PD$mat,
+    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_3_byHost,
     method = "REML",
 )
 
-summary(Q2m4)
+summary(Q3m5)
 ```
 
-### Trait type x Gradient category interaction
-```{r Q2-Trait-x-Host}
-Q2m5 <-
-  rma.mv(
-    abs(g) ~ Trait.type:Gradient.category -1,
-    V = varcovmat_2_PD$mat,
-    random = list( ~ 1 |
-                     ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_2,
-    method = "REML",
-)
-
-summary(Q2m5)
-```
