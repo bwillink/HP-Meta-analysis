@@ -730,7 +730,7 @@ d_stats %>%
 ```{r Q1-null}
 Q1m1 <-
   rma.mv(
-    abs(g) ~ 1,
+    g ~ 1,
     V = varcovmat_1_PD$mat,
     random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
     data = dat_1,
@@ -759,7 +759,7 @@ summary(Q1m2)
 ```{r Q1-single-fixed}
 Q1m3 <-
   rma.mv(
-    abs(g) ~ Trait.category : Trait.type : Gradient.category -1,
+    g ~ Trait.category : Trait.type : Gradient.category -1,
     V = varcovmat_1_PD$mat,
     random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
     data = dat_1,
@@ -773,7 +773,7 @@ summary(Q1m3)
 ```{r Q1-single-fixed}
 Q1m4 <-
   rma.mv(
-    abs(g) ~ Trait.type:Gradient.category -1 ,
+    g ~ Trait.type:Gradient.category -1 ,
     V = varcovmat_1_PD$mat,
     random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
     data = dat_1,
@@ -802,7 +802,7 @@ summary(Q1m5)
 ```{r Q2-null}
 Q2m1 <-
   rma.mv(
-    abs(g) ~ 1,
+    g ~ 1,
     V = varcovmat_2_PD$mat,
     random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
     data = dat_2,
@@ -816,7 +816,7 @@ summary(Q2m1)
 ```{r Q2-single-fixed}
 Q2m2 <-
   rma.mv(
-    abs(g) ~ Trait.type -1 ,
+    g ~ Trait.type -1 ,
     V = varcovmat_2_PD$mat,
     random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
     data = dat_2,
@@ -830,7 +830,7 @@ summary(Q2m2)
 ```{r Q2-single-fixed}
 Q2m3 <-
   rma.mv(
-    abs(g) ~ Trait.type : Gradient.category -1,
+    g ~ Trait.type : Gradient.category -1,
     V = varcovmat_2_PD$mat,
     random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
     data = dat_2,
@@ -845,7 +845,7 @@ summary(Q2m3)
 ```{r Q2-Trait-x-Host}
 Q2m4 <-
   rma.mv(
-    abs(g) ~ Trait.type:Host.type -1,
+    g ~ Trait.type:Host.type -1,
     V = varcovmat_2_PD$mat,
     random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
     data = dat_2,
@@ -861,7 +861,7 @@ summary(Q2m4)
 ```{r Q3-null}
 Q3m1 <-
   rma.mv(
-    abs(g) ~ 1,
+    g ~ 1,
     V = varcovmat_3_PD$mat,
     random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
     data = dat_3,
@@ -876,7 +876,7 @@ summary(Q3m1)
 ```{r Q3-single-fixed}
 Q3m2 <-
   rma.mv(
-    abs(g) ~ Trait.category -1,
+    g ~ Trait.category -1,
     V = varcovmat_3_PD$mat,
     random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
     data = dat_3,
@@ -890,7 +890,7 @@ summary(Q3m2)
 ```{r Q3-Trait-x-Gradient}
 Q3m3 <-
   rma.mv(
-    abs(g) ~ Trait.category:Gradient.category -1,
+    g ~ Trait.category:Gradient.category -1,
     V = varcovmat_3_PD$mat,
     random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
     data = dat_3,
@@ -904,7 +904,7 @@ summary(Q3m3)
 ```{r Q3-Trait-x-Host}
 Q3m4 <-
   rma.mv(
-    abs(g) ~ Trait.type:Gradient.category -1,
+    g ~ Trait.type:Gradient.category -1,
     V = varcovmat_3_PD$mat,
     random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
     data = dat_3,
@@ -919,7 +919,7 @@ summary(Q3m4)
 ```{r Q3-Trait-x-Host}
 Q3m5 <-
   rma.mv(
-    abs(g) ~ Trait.category:Host.type -1,
+    g ~ Trait.category:Host.type -1,
     V = varcovmat_3_byHost_PD$mat,
     random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
     data = dat_3_byHost,
