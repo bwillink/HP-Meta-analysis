@@ -855,6 +855,24 @@ forest.default(x= Q1m6$beta, sei =  Q1m6$se, ci.lb =  Q1m6$ci.lb, ci.ub =  Q1m6$
                 annotate=TRUE, showweights=T, header=F,
                 slab = c("Environment invertebrate infected", "Environment invertebrate uninfected", "Pollution invertebrate infected", "Pollution invertebrate uninfected", "Resource invertebrate infected", "Resource invertebrate uninfected", "Environment vertebrate infected", "Environment vertebrate uninfected", "Pollution vertebrate infected", "Pollution vertebrate uninfected", "Resource vertebrate infected", "Resource vertebrate uninfected"))
 ```
+Check this warning and error!
+### Trait type x Stress type x Host type interaction
+```{r Q1-Trait-x-Host}
+Q1m7 <-
+  rma.mv(
+    g ~ Trait.type:Gradient.category:Host.type.2 -1,
+    V = varcovmat_1_PD$mat,
+    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_1,
+    method = "REML"
+  )
+
+summary(Q1m7)
+forest.default(x= Q1m7$beta, sei =  Q1m7$se, ci.lb =  Q1m7$ci.lb, ci.ub =  Q1m7$ci.ub, 
+                annotate=TRUE, showweights=T, header=F,
+                slab = c("Environment invertebrate fecundity", "Environment invertebrate survivorship", "Pollution invertebrate fecundity", "Pollution invertebrate survivorship", "Resource invertebrate fecundity", "Resource invertebrate survivorship", "Environment vertebrate survivorship", "Pollution vertebrate survivorship", "Resource vertebrate survivorship"))
+```
+
 ### Stress type x Host type interaction, combining infected and uninfected
 ```{r Q1-Trait-x-Host}
 Q1m7 <-
@@ -971,7 +989,7 @@ Q3m2.1 <-
 summary(Q3m2.1)
 forest.default(x= Q3m2.1$beta, sei =  Q3m2.1$se, ci.lb =  Q3m2.1$ci.lb, ci.ub =  Q3m2.1$ci.ub, 
                 annotate=TRUE, showweights=T, header=F,
-                slab = c("Resistance", "Fitness"))
+                slab = c("epidemiological", "Fitness"))
 ```
 ```{r Q3-single-fixed}
 #note that this is WITHOUT absolute value --> In here, resistance is not significant. Which means that the responses to stress are all over the place, while for the fitness trait is always a negative effect. Could be explained by dying individuals when getting infected, which might look like an increase in resistance (??)
@@ -988,7 +1006,7 @@ Q3m2.2 <-
 summary(Q3m2.2)
 forest.default(x= Q3m2.2$beta, sei =  Q3m2.2$se, ci.lb =  Q3m2.2$ci.lb, ci.ub =  Q3m2.2$ci.ub, 
                 annotate=TRUE, showweights=T, header=F,
-                slab = c("Resistance", "Fitness"))
+                slab = c("Epidemiological", "Fitness"))
 ```
 
 
@@ -1006,7 +1024,7 @@ Q3m3 <-
 summary(Q3m3)
 forest.default(x= Q3m3$beta, sei =  Q3m3$se, ci.lb =  Q3m3$ci.lb, ci.ub =  Q3m3$ci.ub, 
                 annotate=TRUE, showweights=T, header=F,
-                slab = c("Environment resistance", "Environment fitness", "Pollution resistance", "Pollution fitness", "Resource resistance", "Resource fitness"))
+                slab = c("Environment epidemiological", "Environment fitness", "Pollution epidemiological", "Pollution fitness", "Resource epidemiological", "Resource fitness"))
 ```
 
 ### Trait type x Gradient category interaction
@@ -1056,7 +1074,22 @@ Q3m6 <-
 summary(Q3m6)
 forest.default(x= Q3m6$beta, sei =  Q3m6$se, ci.lb =  Q3m6$ci.lb, ci.ub =  Q3m6$ci.ub, 
                 annotate=TRUE, showweights=T, header=F,
-                slab = c("Environment invertebrate resistance", "Environment invertebrate fitness", "Environment vertebrate resistance", "Environment vertebrate fitness", "Pollution invertebrate resistance", "Pollution invertebrate fitness", "Pollution vertebrate resistance", "Pollution vertebrate fitness", "Resource invertebrate resistance", "Resource invertebrate fitness", "Resource vertebrate resistance", "Resource vertebrate fitness"))
+                slab = c("Environment invertebrate epidemiological", "Environment invertebrate fitness", "Environment vertebrate epidemiological", "Environment vertebrate fitness", "Pollution invertebrate epidemiological", "Pollution invertebrate fitness", "Pollution vertebrate epidemiological", "Pollution vertebrate fitness", "Resource invertebrate epidemiological", "Resource invertebrate fitness", "Resource vertebrate epidemiological", "Resource vertebrate fitness"))
 
 ```
+```{r Q3-Trait-x-Host}
+Q3m7 <-
+  rma.mv(
+    g ~ Trait.type:Host.type.2:Gradient.category -1,
+    V = varcovmat_3_PD$mat,
+    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_3,
+    method = "REML",
+)
 
+summary(Q3m7)
+forest.default(x= Q3m7$beta, sei =  Q3m7$se, ci.lb =  Q3m7$ci.lb, ci.ub =  Q3m7$ci.ub, 
+                annotate=TRUE, showweights=T, header=F,
+                slab = c("Environment invertebrate fecundity", "Environment invertebrate intensity", "Environment invertebrate prevalence", "Environment invertebrate survivorship", "Environment vertebrate intensity", "Environment vertebrate prevalence", "Environment vertebrate survivorship", "Pollution invertebrate fecundity", "Pollution invertebrate intensity", "Pollution invertebrate prevalence", "Pollution invertebrate survivorship", "Pollution vertebrate intensity", "Pollution vertebrate prevalence", "Pollution vertebrate survivorship", "Resource invertebrate fecundity", "Resource invertebrate intensity", "Resource invertebrate prevalence", "Resource invertebrate survivorship", "Resource vertebrate intensity", "Resource vertebrate prevalence", "Resource vertebrate survivorship"))
+
+```
