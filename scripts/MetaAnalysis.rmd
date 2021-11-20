@@ -16,7 +16,7 @@ Load packages
 ```{r load-packages, message=FALSE, results='hide'}
 x <-
   c(
-    "metafor", "kableExtra", "Matrix", "dplyr")
+    "metafor", "kableExtra", "Matrix", "dplyr", "wesanderson", "weightr")
 
 lapply(x, function(y) {
   # check if installed, if not install
@@ -761,7 +761,7 @@ Q1m1 <-
   rma.mv(
     g ~ 1,
     V = varcovmat_1_PD$mat,
-    random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
+    random = list(  ~ 1 |Experiment/ID, ~ 1 | Parasite),
     data = dat_1,
     method = "REML"
   )
@@ -794,7 +794,7 @@ Q1m3 <-
   rma.mv(
     g ~ Trait.category : Trait.type : Gradient.category -1,
     V = varcovmat_1_PD$mat,
-    random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
+    random = list( ~ 1 | Experiment/ID, ~ 1 | Parasite),
     data = dat_1,
     method = "REML"
   )
@@ -1033,7 +1033,7 @@ Q3m4 <-
   rma.mv(
     g ~ Trait.type:Gradient.category -1,
     V = varcovmat_3_PD$mat,
-    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    random = list( ~ 1 | Experiment/ID, ~ 1 | Parasite),
     data = dat_3,
     method = "REML",
 )
@@ -1077,6 +1077,7 @@ forest.default(x= Q3m6$beta, sei =  Q3m6$se, ci.lb =  Q3m6$ci.lb, ci.ub =  Q3m6$
                 slab = c("Environment invertebrate epidemiological", "Environment invertebrate fitness", "Environment vertebrate epidemiological", "Environment vertebrate fitness", "Pollution invertebrate epidemiological", "Pollution invertebrate fitness", "Pollution vertebrate epidemiological", "Pollution vertebrate fitness", "Resource invertebrate epidemiological", "Resource invertebrate fitness", "Resource vertebrate epidemiological", "Resource vertebrate fitness"))
 
 ```
+
 ```{r Q3-Trait-x-Host}
 Q3m7 <-
   rma.mv(
@@ -1092,4 +1093,262 @@ forest.default(x= Q3m7$beta, sei =  Q3m7$se, ci.lb =  Q3m7$ci.lb, ci.ub =  Q3m7$
                 annotate=TRUE, showweights=T, header=F,
                 slab = c("Environment invertebrate fecundity", "Environment invertebrate intensity", "Environment invertebrate prevalence", "Environment invertebrate survivorship", "Environment vertebrate intensity", "Environment vertebrate prevalence", "Environment vertebrate survivorship", "Pollution invertebrate fecundity", "Pollution invertebrate intensity", "Pollution invertebrate prevalence", "Pollution invertebrate survivorship", "Pollution vertebrate intensity", "Pollution vertebrate prevalence", "Pollution vertebrate survivorship", "Resource invertebrate fecundity", "Resource invertebrate intensity", "Resource invertebrate prevalence", "Resource invertebrate survivorship", "Resource vertebrate intensity", "Resource vertebrate prevalence", "Resource vertebrate survivorship"))
 
+```
+
+
+# Publication bias
+
+I tried to check for publication bias in our three data sets and see which correction methods would be suitable. The most common way to assess publication bias is to test whether studies with large standard errors tend to have larger effect sizes. Small studies have larger SEs, and because they are small, they are more likely to get published only if results are significant. In contrast, large studies, which have higher precision and have costed more money, are more likely to get published either way.
+
+### Funnel plots
+A very common way to assess publication bias is therefore to check whether studies with low precision have larger effects. The typical way to visualize this is through a funnel plot. Now, this is not entirely correct for us, as the effects are not independent. I don't know what is the best way to go about this, but for now I'm simply showing points from the same experiment in the same colour.
+
+**Note** I checked some previous studies that use multilevel regression models as we do here, to see what they do about publication bias. Sauer et al 2020 Ecology (101) acknowledged this problem and decided not to even show funnel plots: "Because of the complex non independence among effect sizes within a study (e.g., some studies had multiple effect sizes), we did not use funnel plots or rank correlation tests to assess publication bias (Lau et al. 2006, Civitello et al.2015)." Others (Yates et al. 2019 Environmental DNA (1); Salerno et al 2021 Global Change Biology (27); Brlik et al. 2020 JAE) acknowledge this problem, but still show funnel plots warning caution. They also conduct a version of Eggerts test which I do below.
+
+#### Data set 1: fitness effects of environmental stress
+```{r dat_1-funnel}
+# make new factor for colour grouping
+nlvl <- length(unique(dat_1$Experiment))
+pal <- wes_palette("Darjeeling1", nlvl, type = "continuous")
+dat_1$Exp_nn <- as.factor(x=dat_1$Experiment)
+levels(dat_1$Exp_nn) <- as.factor(seq(1:nlvl))
+
+# plot funnel
+metafor::funnel(dat_1$g, dat_1$var.g, level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal[dat_1$Exp_nn], back = "white", refline=0, legend=TRUE)
+
+# maybe we want to visualize the two fitness traits separately
+dat_1_Surv <-dat_1[which(dat_1$Trait.type == "Survivorship"),]
+
+# colour grouping
+nlvl <- length(unique(dat_1_Surv$Experiment))
+pal_Surv <- wes_palette("Darjeeling1", nlvl, type = "continuous")
+dat_1_Surv$Exp_nn <- as.factor(x=dat_1_Surv$Experiment)
+levels(dat_1_Surv$Exp_nn) <- as.factor(seq(1:nlvl))
+
+# plot funnel
+metafor::funnel(dat_1_Surv$g, dat_1_Surv$var.g, level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal[dat_1_Surv$Exp_nn], back = "white", refline=0, legend=TRUE)
+
+# for fecundity
+dat_1_Fecund <-dat_1[which(dat_1$Trait.type == "Fecundity"),]
+
+# colour grouping
+nlvl <- length(unique(dat_1_Fecund$Experiment))
+pal_Fecund <- wes_palette("Darjeeling1", nlvl, type = "continuous")
+dat_1_Fecund$Exp_nn <- as.factor(x=dat_1_Fecund$Experiment)
+levels(dat_1_Fecund$Exp_nn) <- as.factor(seq(1:nlvl))
+
+#plot funnel
+metafor::funnel(x = dat_1_Fecund$g, vi = dat_1_Fecund$var.g,  level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal[dat_1_Fecund$Exp_nn], back = "white", refline=0, legend=TRUE)
+```
+
+We can see that as SE increases (e.g > 1) all studies report significant negative fitness effects of environmental stress. In other words, it seems that very small studies tend to find more significant effects.
+
+#### Data set 2: resistance effects of environmental stress
+```{r dat_2-funnel}
+# make new factor for colour grouping
+nlvl <- length(unique(dat_2$Experiment))
+pal <- wes_palette("Darjeeling1", nlvl, type = "continuous")
+dat_2$Exp_nn <- as.factor(x=dat_2$Experiment)
+levels(dat_2$Exp_nn) <- as.factor(seq(1:nlvl))
+
+# plot funnel
+metafor::funnel(dat_2$g, dat_2$var.g, level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal[dat_2$Exp_nn], back = "white", refline=0, legend=TRUE)
+
+# there is one extreme study with low precision and apparently a huge effect size. Which one is it?
+dat_2$Study[which(dat_2$var.g == max(dat_2$var.g))]
+
+# let's see how it looks without that one
+dat_2_no <- dat_2[-which(dat_2$Study == "Carrington et al. 2013. PLOS NegTropDiseases"),]
+
+# make new factor for colour grouping
+nlvl <- length(unique(dat_2_no$Experiment))
+pal <- wes_palette("Darjeeling1", nlvl, type = "continuous")
+dat_2_no$Exp_nn <- droplevels(dat_2_no$Exp_nn)
+levels(dat_2_no$Exp_nn) <- as.factor(seq(1:nlvl))
+
+metafor::funnel(dat_2_no$g, dat_2_no$var.g, level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal[dat_2_no$Exp_nn], back = "white", refline=0, legend=TRUE)
+
+# maybe we want to visualize the two resistance traits separately
+dat_2_Int <-dat_2[which(dat_2$Trait.type == "Intensity"),]
+
+# colour grouping
+nlvl <- length(unique(dat_2_Int$Experiment))
+pal_Int <- wes_palette("Darjeeling1", nlvl, type = "continuous")
+dat_2_Int$Exp_nn <- as.factor(x=dat_2_Int$Experiment)
+levels(dat_2_Int$Exp_nn) <- as.factor(seq(1:nlvl))
+
+# plot funnel
+metafor::funnel(dat_2_Int$g, dat_2_Int$var.g, level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal[dat_2_Int$Exp_nn], back = "white", refline=0, legend=TRUE)
+
+# for prevalence
+dat_2_Pre <-dat_2_no[which(dat_2$Trait.type == "Prevalence"),]
+
+# colour grouping
+nlvl <- length(unique(dat_2_Pre$Experiment))
+pal_Pre <- wes_palette("Darjeeling1", nlvl, type = "continuous")
+dat_2_Pre$Exp_nn <- as.factor(x=dat_2_Pre$Experiment)
+levels(dat_2_Pre$Exp_nn) <- as.factor(seq(1:nlvl))
+
+#plot funnel
+metafor::funnel(x = dat_2_Pre$g, vi = dat_2_Pre$var.g,  level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal[dat_2_Pre$Exp_nn], back = "white", refline=0, legend=TRUE)
+```
+
+### Modified Eggert's test
+Eggert's test is essentially a regression between effect sizes and precision. Studies with large SE have low precision. When precision is 0, the expected effect size  should be 0. Even if there is a real effect, without precision one shouldn't find it. So we are interested in the intercept of this regression (effect size when precision is 0) and testing whether this intercept differs from 0. If it does, we can suspect there is a bias caused by small studies, which can in turn be caused by publication bias.
+
+In this case we want to use the same multilevel approach as in our main models to accounts for the non-independence of effects coming from the same study (or conducted with the same parasite). I've seen versions of this with the effect sizes (g) or the residuals of null models (without fixed predictors). Here, I include both.
+
+#### Data set 1: fitness effects of environmental stress
+
+```{r dat_1-Eggert}
+# get residuals from null model
+dat_1$res <- rstandard.rma.mv(Q1m1)$res
+
+# calculate precision
+dat_1$precision <-  1/sqrt(dat_1$var.g)
+
+# meta regression with effect size
+rma.mv(g ~ precision,
+    V = varcovmat_1_PD$mat,
+    random = list( ~ 1 | Experiment/ID, ~ 1 | Parasite),
+    data = dat_1,
+    method = "REML")
+
+# meta regression with residual
+rma.mv(res ~ precision,
+    V = varcovmat_1_PD$mat,
+    random = list( ~ 1 | Experiment/ID, ~ 1 | Parasite),
+    data = dat_1,
+    method = "REML")
+```
+
+Both cases suggest bias, in that even infinitely small studies would find a negative effect of environmental stress on fitness.
+
+#### Data set 2: resistance effects of environmental stress
+
+```{r dat_2-Eggert}
+# get residuals from null model
+dat_2$res <- rstandard.rma.mv(Q2m1)$res
+
+# calculate precision
+dat_2$precision <-  1/sqrt(dat_2$var.g)
+
+# meta regression with effect size
+rma.mv(g ~ precision,
+    V = varcovmat_2_PD$mat,
+    random = list( ~ 1 | Experiment/ID, ~ 1 | Parasite),
+    data = dat_2,
+    method = "REML")
+
+# meta regression with residual
+rma.mv(res ~ precision,
+    V = varcovmat_2_PD$mat,
+    random = list( ~ 1 | Experiment/ID, ~ 1 | Parasite),
+    data = dat_2,
+    method = "REML")
+```
+Even when we include Carrington et al 2013, we don't find evidence of publication bias here.
+
+### What to do if there is bias?
+The studies I saw using a version Eggert's test and find evidence of publication bias, define a precision/study size threshold, remove studies below this threshold and see if that alters their results substantially. This is not an elegant solution but might be the best we have as all methods that I could find to adjust effect sizes do not work for multilevel models (rma.mv).
+
+### Weighting the effects of (small) studies
+A related question that one could want to check is how different studies contribute to the overall effects to see. In other words is our main result being driven by a few studies? Here I compute and plot a few measures of outlier/influence diagnostics.
+
+I'm also calculating the influence statistics cooks distance and dfbetas at the level of studies. In the metafor man pages: 
+
+"Cook's distance can be interpreted as the Mahalanobis distance between the entire set of predicted values once with the 𝑖th case included and once with the 𝑖th case excluded from the model fitting." 
+
+"the DFBETAS value(s) essentially indicate(s) how many standard deviations the estimated coefficient(s) change(s) after excluding the 𝑖th case from the model fitting."
+
+A value is influential if "The hat value is larger than 3×(𝑝/𝑘)." where p is the number of coeffiecients and k the number of cases.
+
+#### Data set 1: fitness effects of environmental stress
+I'm running the analysis here for the model with the lowest AIC (Q1m4). We should probably do it for which ever model is our main model in the manuscript (probably this one?)
+
+```{r dat_1-influence}
+# Cook's distance
+Cook_dat1 <- cooks.distance(Q1m4, progbar=TRUE, dat_1$Study, reestimate=TRUE, parallel="multicore", ncpus = 2)
+
+# how are these distances distributes?
+hist(Cook_dat1)
+
+# Which are the most influential studies?
+Cook_dat1[which(Cook_dat1 > 1)]
+
+# dfbetas
+dfbetas_dat1 <- dfbetas.rma.mv(Q1m4, progbar=TRUE, dat_1$Study, reestimate=TRUE, parallel="multicore")
+
+# Which are the most influential studies?
+dfbetas_dat1[abs(dfbetas_dat1[,1])>1 | abs(dfbetas_dat1[,2])>1
+             | abs(dfbetas_dat1[,3])>1 | abs(dfbetas_dat1[,4])>1
+             | abs(dfbetas_dat1[,5])>1 | abs(dfbetas_dat1[,6])>1,]
+
+# hat values
+hat_dat1 <- hatvalues(Q1m4) 
+
+# Which are the most influential effects?
+inf_cutoff <- 3 * length(Q1m4$beta)/nrow(dat_1)
+
+dat_1$Study[hat_dat1 > inf_cutoff]
+```
+
+#### Data set 2: resistance effects of environmental stress
+I'm running the analysis here for the model with the lowest AIC (Q3m4). We should probably do it for which ever model is our main model in the manuscript (probably this one?)
+
+```{r dat_2-influence}
+# Cook's distance
+Cook_dat2 <- cooks.distance(Q2m4, progbar=TRUE, dat_2$Study, reestimate=TRUE, parallel="multicore", ncpus = 2)
+
+# how are these distances distributes?
+hist(Cook_dat2)
+
+# Which are the most influential studies?
+Cook_dat2[which(Cook_dat2 > 1)]
+
+# dfbetas
+dfbetas_dat2 <- dfbetas.rma.mv(Q2m4, progbar=TRUE, dat_2$Study, reestimate=TRUE, parallel="multicore")
+
+# Which are the most influential studies?
+dfbetas_dat2[abs(dfbetas_dat2[,1])>1 | abs(dfbetas_dat2[,2])>1
+             | abs(dfbetas_dat2[,3])>1 | abs(dfbetas_dat2[,4])>1
+             | abs(dfbetas_dat2[,5])>1 | abs(dfbetas_dat2[,6])>1,]
+
+# hat values
+hat_dat2 <- hatvalues(Q2m4) 
+
+# Which are the most influential effects?
+inf_cutoff <- 3 * length(Q2m4$beta)/nrow(dat_2)
+
+dat_2$Study[hat_dat2 > inf_cutoff]
+```
+
+#### Data set 3: resistance vs fitness effects of environmental stress
+I'm running the analysis here for the model with the lowest AIC (Q3m4). We should probably do it for which ever model is our main model in the manuscript (probably this one?)
+
+```{r dat_3-influence}
+# Cook's distance
+Cook_dat3 <- cooks.distance(Q3m4, progbar=TRUE, dat_3$Study, reestimate=TRUE, parallel="multicore", ncpus = 4)
+
+# how are these distances distributes?
+hist(Cook_dat3)
+
+# Which are the most influential studies?
+Cook_dat3[which(Cook_dat3 > 3)]
+
+# dfbetas
+dfbetas_dat3 <- dfbetas.rma.mv(Q3m4, progbar=TRUE, dat_3$Study, reestimate=TRUE, parallel="multicore")
+
+# Which are the most influential studies?
+dfbetas_dat3[abs(dfbetas_dat3[,1])>1 | abs(dfbetas_dat3[,2])>1
+             | abs(dfbetas_dat3[,3])>1 | abs(dfbetas_dat3[,4])>1
+             | abs(dfbetas_dat3[,5])>1 | abs(dfbetas_dat3[,6])>1,]
+
+# hat values
+hat_dat3 <- hatvalues(Q3m4) 
+
+# Which are the most influential effects?
+inf_cutoff <- 3 * length(Q3m4$beta)/nrow(dat_3)
+
+dat_3$Study[hat_dat3 > inf_cutoff]
 ```
