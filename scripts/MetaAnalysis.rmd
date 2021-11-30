@@ -16,7 +16,7 @@ Load packages
 ```{r load-packages, message=FALSE, results='hide'}
 x <-
   c(
-    "metafor", "kableExtra", "Matrix", "dplyr", "wesanderson", "weightr")
+    "metafor", "kableExtra", "Matrix", "dplyr", "wesanderson", "weightr", "ggplot2")
 
 lapply(x, function(y) {
   # check if installed, if not install
@@ -811,7 +811,7 @@ Q1m4 <-
   rma.mv(
     g ~ Trait.type:Gradient.category -1 ,
     V = varcovmat_1_PD$mat,
-    random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
+    random = list( ~ 1 | Experiment/ID, ~ 1 | Parasite),
     data = dat_1,
     method = "REML"
   )
@@ -928,7 +928,7 @@ Q2m3 <-
   rma.mv(
     g ~ Trait.type : Gradient.category -1,
     V = varcovmat_2_PD$mat,
-    random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
+    random = list( ~ 1 |Experiment/ID, ~ 1 | Parasite),
     data = dat_2,
     method = "REML"
   )
@@ -1352,3 +1352,280 @@ inf_cutoff <- 3 * length(Q3m4$beta)/nrow(dat_3)
 
 dat_3$Study[hat_dat3 > inf_cutoff]
 ```
+
+# Heterogeneity
+
+Here I take the "best" model for each question to estimate between study heterogeneity. We could potentially do the same a different model or more models, depending on our goals.
+
+Heterogeneity is important to know if the pooled effect size can be interpreted in a meaningful way. High heterogeneity is not necessarily a bad thing, but we would at least want to know if individual study effects usually go in the direction of the pooled effect.
+
+## I2 statistic
+Is one of the most commonly reported measures of heterogeneity. It captures the "percentage of variability in the effect sizes that is not caused by sampling error". That is, heterogeneity in true effect sizes. It tells us how much true heterogeneity there is *relative* to sampling error.
+
+### Question 1
+
+```{r dat_1-I2}
+# we account for covariance in sampling errors by using V, but assuming equal heterogeneity between fecundity vs survival and between environment, pollution and resources.
+
+# matrix of sampling variances and covariances W 
+W <- solve(varcovmat_1_PD$mat)
+
+# model matrix
+X <- model.matrix(Q1m4)
+
+# estimate heterogeneity
+P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
+
+# overall I2: how much of total variance is attributed to heterogeneity
+100 * sum(Q1m4$sigma2) / (sum(Q1m4$sigma2) + (Q1m4$k-Q1m4$p)/sum(diag(P)))
+
+# Heterogeneity between experiments, within experiments, between parasites
+100 * Q1m4$sigma2 / (sum(Q1m4$sigma2) + (Q1m4$k-Q1m4$p)/sum(diag(P)))
+
+sav <- confint(Q1m4)
+#profile(Q1m4)
+
+# confidence intervals for I2
+100 * sav[[1]]$random[1,2:3] /(sum(Q1m4$sigma2) + (Q1m4$k-Q1m4$p)/sum(diag(P))) ### CI for experiment-level I^2
+100 * sav[[2]]$random[1,2:3] / (sum(Q1m4$sigma2)+ (Q1m4$k-Q1m4$p)/sum(diag(P))) ### CI for the ID-level I^2
+100 * sav[[3]]$random[1,2:3] / (sum(Q1m4$sigma2) + (Q1m4$k-Q1m4$p)/sum(diag(P)))  ### CI for the parasite-level I^2
+```
+
+### Question 2
+
+```{r dat_2-I2}
+# we account for covariance in sampling errors by using V, but assuming equal heterogeneity between fecundity vs survival and between environment, pollution and resources.
+
+# matrix of sampling variances and covariances W 
+W <- solve(varcovmat_2_PD$mat)
+
+# model matrix
+X <- model.matrix(Q2m3)
+
+# estimate heterogeneity
+P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
+
+# overall I2: how much of total variance is attributed to heterogeneity
+100 * sum(Q2m3$sigma2) / (sum(Q2m3$sigma2) + (Q2m3$k-Q2m3$p)/sum(diag(P)))
+
+# Heterogeneity between experiments, within experiments, between parasites
+100 * Q2m3$sigma2 / (sum(Q2m3$sigma2) + (Q2m3$k-Q2m3$p)/sum(diag(P)))
+
+sav2 <- confint(Q2m3)
+#profile(Q2m3)
+
+# confidence intervals for I2
+100 * sav2[[1]]$random[1,2:3] /(sum(Q2m3$sigma2) + (Q2m3$k-Q2m3$p)/sum(diag(P))) ### CI for experiment-level I^2
+100 * sav2[[2]]$random[1,2:3] / (sum(Q2m3$sigma2)+ (Q2m3$k-Q2m3$p)/sum(diag(P))) ### CI for the ID-level I^2
+100 * sav2[[3]]$random[1,2:3] / (sum(Q2m3$sigma2) + (Q2m3$k-Q2m3$p)/sum(diag(P)))  ### CI for the parasite-level I^2
+```
+
+
+### Question 3
+
+```{r dat_3-I2}
+# we account for covariance in sampling errors by using V, but assuming equal heterogeneity between fecundity vs survival and between environment, pollution and resources.
+
+# matrix of sampling variances and covariances W 
+W <- solve(varcovmat_3_PD$mat)
+
+# model matrix
+X <- model.matrix(Q3m4)
+
+# estimate heterogeneity
+P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
+
+# overall I2: how much of total variance is attributed to heterogeneity
+100 * sum(Q3m4$sigma2) / (sum(Q3m4$sigma2) + (Q3m4$k-Q3m4$p)/sum(diag(P)))
+
+# Heterogeneity between experiments, within experiments, between parasites
+100 * Q3m4$sigma2 / (sum(Q3m4$sigma2) + (Q3m4$k-Q3m4$p)/sum(diag(P)))
+
+sav2 <- confint(Q3m4)
+#profile(Q3m4)
+
+# confidence intervals for I2
+100 * sav2[[1]]$random[1,2:3] /(sum(Q3m4$sigma2) + (Q3m4$k-Q3m4$p)/sum(diag(P))) ### CI for experiment-level I^2
+100 * sav2[[2]]$random[1,2:3] / (sum(Q3m4$sigma2)+ (Q3m4$k-Q3m4$p)/sum(diag(P))) ### CI for the ID-level I^2
+100 * sav2[[3]]$random[1,2:3] / (sum(Q3m4$sigma2) + (Q3m4$k-Q3m4$p)/sum(diag(P)))  ### CI for the parasite-level I^2
+```
+
+## Predicted effects
+Another way to assess heterogeneity is to look at the random effects at the level of experiments or effect ID (the larger variance components) and see if there are specific experiments or effects that deviate from 0.
+
+### Question 1
+```{r dat_1-random_pred}
+
+# between experiment effects
+random <- ranef(Q1m4)
+random_exp <- data.frame(random$Experiment)
+random_exp$Experiment <- rownames(random_exp)
+
+for (i in 1:nrow(random_exp)){
+  random_exp$gr[i] <- dat_1$Gradient.category[dat_1$Experiment == random_exp$Experiment[i]][1]
+} 
+
+random_exp <- random_exp[order(random_exp$intrcpt),] 
+random_exp <- random_exp[order(random_exp$gr),] 
+
+pal <- wes_palette("IsleofDogs1", n = 3)
+Exp_het <-
+  ggplot(data = random_exp, aes(x = Experiment, colour = gr)) +
+  geom_errorbar(aes(ymin = pi.lb, ymax = pi.ub), size = 2) +
+  scale_x_discrete(limits = random_exp$Experiment) +
+  theme_light(base_size = 16) +
+  theme(
+    panel.grid.major.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  ) +
+  scale_colour_manual(values = pal, name = "Stressor") +
+  labs(y = "prediction interval")
+
+Exp_het
+
+# within experiment effects
+random_id <- data.frame(random$`Experiment/ID`)
+random_id$ID <- as.factor(dat_1$ID)
+
+for (i in 1:nrow(random_id)){
+  random_id$gr[i] <- dat_1$Gradient.category[i]
+} 
+
+random_id <- random_id[order(random_id$intrcpt),] 
+random_id <- random_id[order(random_id$gr),] 
+
+pal <- wes_palette("IsleofDogs1", n = 3)
+Id_het <-
+  ggplot(data = random_id, aes(x = ID, colour = gr)) +
+  geom_errorbar(aes(ymin = pi.lb, ymax = pi.ub), size = 1) +
+  scale_x_discrete(limits = random_id$ID) +
+  theme_light(base_size = 16) +
+  theme(
+    panel.grid.major.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  ) +
+  scale_colour_manual(values = pal, name = "Stressor") +
+  labs(y = "prediction interval")
+
+Id_het
+```
+
+### Question 2
+```{r dat_2-random_pred}
+
+# between experiment effects
+random <- ranef(Q2m3)
+random_exp <- data.frame(random$Experiment)
+random_exp$Experiment <- rownames(random_exp)
+
+for (i in 1:nrow(random_exp)){
+  random_exp$gr[i] <- dat_2$Gradient.category[dat_2$Experiment == random_exp$Experiment[i]][1]
+} 
+
+random_exp <- random_exp[order(random_exp$intrcpt),] 
+random_exp <- random_exp[order(random_exp$gr),] 
+
+pal <- wes_palette("IsleofDogs1", n = 3)
+Exp_het <-
+  ggplot(data = random_exp, aes(x = Experiment, colour = gr)) +
+  geom_errorbar(aes(ymin = pi.lb, ymax = pi.ub), size = 1.5) +
+  scale_x_discrete(limits = random_exp$Experiment) +
+  theme_light(base_size = 16) +
+  theme(
+    panel.grid.major.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  ) +
+  scale_colour_manual(values = pal, name = "Stressor") +
+  labs(y = "prediction interval")
+
+Exp_het
+
+# within experiment effects
+random_id <- data.frame(random$`Experiment/ID`)
+random_id$ID <- as.factor(dat_2$ID)
+
+for (i in 1:nrow(random_id)){
+  random_id$gr[i] <- dat_2$Gradient.category[i]
+} 
+
+random_id <- random_id[order(random_id$intrcpt),] 
+random_id <- random_id[order(random_id$gr),] 
+
+pal <- wes_palette("IsleofDogs1", n = 3)
+Id_het <-
+  ggplot(data = random_id, aes(x = ID, colour = gr)) +
+  geom_errorbar(aes(ymin = pi.lb, ymax = pi.ub), size = 1) +
+  scale_x_discrete(limits = random_id$ID) +
+  theme_light(base_size = 16) +
+  theme(
+    panel.grid.major.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  ) +
+  scale_colour_manual(values = pal, name = "Stressor") +
+  labs(y = "prediction interval")
+
+Id_het
+```
+### Question 3
+```{r dat_3-random_pred}
+
+# between experiment effects
+random <- ranef(Q3m4)
+random_exp <- data.frame(random$Experiment)
+random_exp$Experiment <- rownames(random_exp)
+
+for (i in 1:nrow(random_exp)){
+  random_exp$gr[i] <- dat_3$Gradient.category[dat_3$Experiment == random_exp$Experiment[i]][1]
+} 
+
+random_exp <- random_exp[order(random_exp$intrcpt),] 
+random_exp <- random_exp[order(random_exp$gr),] 
+
+pal <- wes_palette("IsleofDogs1", n = 3)
+Exp_het <-
+  ggplot(data = random_exp, aes(x = Experiment, colour = gr)) +
+  geom_errorbar(aes(ymin = pi.lb, ymax = pi.ub), size = 1.5) +
+  scale_x_discrete(limits = random_exp$Experiment) +
+  theme_light(base_size = 16) +
+  theme(
+    panel.grid.major.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  ) +
+  scale_colour_manual(values = pal, name = "Stressor")  +
+  labs(y = "prediction interval")
+
+Exp_het
+
+# within experiment effects
+random_id <- data.frame(random$`Experiment/ID`)
+random_id$ID <- as.factor(dat_3$ID)
+
+for (i in 1:nrow(random_id)){
+  random_id$gr[i] <- dat_3$Gradient.category[i]
+} 
+
+random_id <- random_id[order(random_id$intrcpt),] 
+random_id <- random_id[order(random_id$gr),] 
+
+pal <- wes_palette("IsleofDogs1", n = 3)
+Id_het <-
+  ggplot(data = random_id, aes(x = ID, colour = gr)) +
+  geom_errorbar(aes(ymin = pi.lb, ymax = pi.ub), size = 1) +
+  scale_x_discrete(limits = random_id$ID) +
+  theme_light(base_size = 16) +
+  theme(
+    panel.grid.major.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  ) +
+  scale_colour_manual(values = pal, name = "Stressor") +
+  labs(y = "prediction interval")
+
+Id_het
+```
+
