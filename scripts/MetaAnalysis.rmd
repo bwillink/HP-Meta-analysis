@@ -16,7 +16,7 @@ Load packages
 ```{r load-packages, message=FALSE, results='hide'}
 x <-
   c(
-    "metafor", "kableExtra", "Matrix", "dplyr", "wesanderson", "weightr", "ggplot2", "bbmle")
+    "metafor", "kableExtra", "Matrix", "dplyr", "wesanderson", "weightr", "ggplot2", "bbmle", "MuMIn")
 
 lapply(x, function(y) {
   # check if installed, if not install
@@ -896,6 +896,34 @@ AICtab(Q1m1, Q1m2, Q1m3, Q1m4, Q1m5, Q1m6, Q1m7, Q1m8, mnames = LETTERS[1:8], de
 # Without Q1m7
 AICtab(Q1m1, Q1m2, Q1m3, Q1m4, Q1m5, Q1m6, Q1m8, mnames = LETTERS[1:7], delta = TRUE, weights = TRUE)
 ```
+#### Model inference
+```{r}
+# First, we evaluate some code that generates helper functions needed so that metafor and MuMIn could interact as necessary
+eval(metafor:::.MuMIn)
+
+# Now, we take the full model and fit the rest of the models and examine those models whose AICc value is no more than 10 units away from that of the best model
+full_model <- rma.mv(
+    g,
+    V = varcovmat_1_PD$mat,
+    mods = ~ Trait.category * Trait.type * Gradient.category - 1, 
+    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_1,
+    method = "ML"
+  )
+
+model_selection <- dredge(full_model, trace=2) 
+subset(model_selection, delta <= 10, recalc.weights=FALSE)
+
+# Multimodel inference
+average.model <- model.avg(model_selection, revised.var=FALSE) #fit = T, Set revised.var = F to get same results as we would with the glmulti package
+summary(average.model) 
+
+# relative importance values for the predictors can be obtained with:
+importance(model_selection)
+
+#How do we get model predictions?
+
+```
 
 ## Question 2 - Are resistance traits negatively affected by stressors
 ### Null model
@@ -967,6 +995,38 @@ forest.default(x= Q2m4$beta, sei =  Q2m4$se, ci.lb =  Q2m4$ci.lb, ci.ub =  Q2m4$
 ```{r}
 AICtab(Q2m1, Q2m2, Q2m3, Q2m4, mnames = LETTERS[1:4], delta = TRUE, weights = TRUE)
 ```
+
+#### Model inference
+```{r}
+# First, we evaluate some code that generates helper functions needed so that metafor and MuMIn could interact as necessary
+eval(metafor:::.MuMIn)
+
+# Now, we take the full model (in this case Q2m4) and fit the rest of the models and examine those models whose AICc value is no more than 2 units away from that of the best model
+full_model <- rma.mv(
+    g,
+    V = varcovmat_2_PD$mat,
+    mods = ~ Trait.type * Gradient.category - 1, 
+    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_2,
+    method = "ML"
+  )
+
+model_selection <- dredge(full_model, trace=2) 
+subset(model_selection, delta <= 10, recalc.weights=FALSE)
+
+# Multimodel inference
+average.model <- model.avg(model_selection, revised.var=FALSE, fit = T)
+summary(average.model) #Set revised.var = F to get same results as we would with the glmulti package
+
+# relative importance values for the predictors can be obtained with:
+importance(model_selection)
+
+
+#How do we get model predictions?
+
+predict(average.model, newdata = data.frame("Gradient.category" = c("Environment", "Pollution", "Resource", "Environment", "Pollution", "Resource"), "Trait.type" = c("Intensity", "Intensity", "Intensity", "Prevalence", "Prevalence", "Prevalence")), se.fit = T)
+```
+
 
 ## Question 3 - Do resistance and fitness traits have different sensitivity to stressors
 ### Null model
@@ -1111,6 +1171,31 @@ forest.default(x= Q3m7$beta, sei =  Q3m7$se, ci.lb =  Q3m7$ci.lb, ci.ub =  Q3m7$
 AICtab(Q3m1, Q3m2.2, Q3m3, Q3m4, Q3m5, Q3m6, Q3m7, mnames = LETTERS[1:7], delta = TRUE, weights = TRUE)
 # Without Q3m2.1 and Q3m7
 AICtab(Q3m1, Q3m2.2, Q3m3, Q3m4, Q3m5, Q3m6, mnames = LETTERS[1:6], delta = TRUE, weights = TRUE)
+```
+#### Model inference
+```{r}
+full_model <- rma.mv(
+    g,
+    V = varcovmat_3_PD$mat,
+    mods = ~ Trait.category * Trait.type * Gradient.category - 1, 
+    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    data = dat_3,
+    method = "ML"
+  )
+
+model_selection <- dredge(full_model, trace=2) 
+subset(model_selection, delta <= 10, recalc.weights=FALSE)
+
+# Multimodel inference
+average.model <- model.avg(model_selection, revised.var=FALSE) #fit = T, Set revised.var = F to get same results as we would with the glmulti package
+summary(average.model) 
+
+# relative importance values for the predictors can be obtained with:
+importance(model_selection)
+
+#How do we get model predictions?
+#We should re-fit with REML
+
 ```
 
 # Publication bias
