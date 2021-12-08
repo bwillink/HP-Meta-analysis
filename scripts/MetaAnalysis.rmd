@@ -16,7 +16,7 @@ Load packages
 ```{r load-packages, message=FALSE, results='hide'}
 x <-
   c(
-    "metafor", "kableExtra", "Matrix", "dplyr", "wesanderson", "weightr", "ggplot2", "bbmle", "MuMIn")
+    "metafor", "kableExtra", "Matrix", "dplyr", "wesanderson", "weightr", "ggplot2", "bbmle", "MuMIn", "glmulti")
 
 lapply(x, function(y) {
   # check if installed, if not install
@@ -27,7 +27,7 @@ lapply(x, function(y) {
   try(require(y, character.only = T), silent = T)
 })
 ```
-
+*Note* If you have trouble loading the glmulti package due to issues with Java, follow https://zhiyzuo.github.io/installation-rJava/ using the version Java17 (make sure to download the Arm 64 DMG Installer at https://www.oracle.com/java/technologies/downloads/#jdk17-mac)
 
 Read in data
 ```{r read-data}
@@ -997,6 +997,61 @@ AICtab(Q2m1, Q2m2, Q2m3, Q2m4, mnames = LETTERS[1:4], delta = TRUE, weights = TR
 ```
 
 #### Model inference
+```{r}
+# Using glmulti package
+rma.glmulti <- function(formula, data, V, random, ...){
+   rma.mv(formula, V = V, data = data, random = random, method="ML", ...) # To compare models, we have to use ML
+}
+res <- glmulti(g ~ Trait.type*Gradient.category-1, 
+               data=dat_2,
+               V = varcovmat_2_PD$mat, 
+               random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
+               level = 2, fitfunction = rma.glmulti, crit="aicc")
+
+print(res)
+plot(res)
+top <- weightable(res)
+top <- top[top$aicc <= min(top$aicc) + 2,]
+top
+summary(res@objects[[1]])
+plot(res, type="s")
+
+#Multimodel inference
+eval(metafor:::.glmulti)
+coef(res)
+mmi <- as.data.frame(coef(res))
+mmi <- data.frame(Estimate=mmi$Est, SE=sqrt(mmi$Uncond), Importance=mmi$Importance, row.names=row.names(mmi))
+mmi$z <- mmi$Estimate / mmi$SE
+mmi$p <- 2*pnorm(abs(mmi$z), lower.tail=FALSE)
+names(mmi) <- c("Estimate", "Std. Error", "Importance", "z value", "Pr(>|z|)")
+mmi$ci.lb <- mmi[[1]] - qnorm(.975) * mmi[[2]]
+mmi$ci.ub <- mmi[[1]] + qnorm(.975) * mmi[[2]]
+mmi <- mmi[order(mmi$Importance, decreasing=TRUE), c(1,2,4:7,3)]
+round(mmi, 4)
+
+#Multimodel predictions
+x <- c("Gradient.category" == "Environment", "Trait.type" == "Intensity")
+preds <- list()
+ 
+for (j in 1:res@nbmods) {
+   model <- res@objects[[j]]
+   vars <- names(coef(model))[-1]
+   if (length(vars) == 0) {
+      preds[[j]] <- predict(model)
+   } else {
+      preds[[j]] <- predict(model, newmods=x[vars])
+   }
+}
+
+weights <- weightable(res)$weights
+yhat <- sum(weights * sapply(preds, function(x) x$pred))
+round(yhat, 3)
+se <- sqrt(sum(weights * sapply(preds, function(x) x$se^2 + (x$pred - yhat)^2)))
+round(yhat + c(-1,1)*qnorm(.975)*se, 3)
+
+```
+
+
 ```{r}
 # First, we evaluate some code that generates helper functions needed so that metafor and MuMIn could interact as necessary
 eval(metafor:::.MuMIn)
