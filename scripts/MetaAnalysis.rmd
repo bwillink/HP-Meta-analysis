@@ -996,29 +996,44 @@ forest.default(x= Q2m4$beta, sei =  Q2m4$se, ci.lb =  Q2m4$ci.lb, ci.ub =  Q2m4$
 AICtab(Q2m1, Q2m2, Q2m3, Q2m4, mnames = LETTERS[1:4], delta = TRUE, weights = TRUE)
 ```
 
-#### Model inference
+#### Using glmulti package
 ```{r}
-# Using glmulti package
+# Define a function that takes a model formula and a dataset as input and then fits a random/mixed-effects meta-regression model to the given data using maximum likelihood estimation (o compare models, we have to use ML)
 rma.glmulti <- function(formula, data, V, random, ...){
-   rma.mv(formula, V = V, data = data, random = random, method="ML", ...) # To compare models, we have to use ML
+   rma.mv(formula, V = V, data = data, random = random, method="ML", ...) 
 }
+
+# Fit all models
 res <- glmulti(g ~ Trait.type*Gradient.category-1, 
                data=dat_2,
                V = varcovmat_2_PD$mat, 
                random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
-               level = 2, fitfunction = rma.glmulti, crit="aicc")
-
+               level = 2, fitfunction = rma.glmulti, crit="aicc",
+               method = "ML")
+# --> Check warnings: Redundant predictors dropped from the model. 
+# summary
 print(res)
+
+# plot of AICc values for the models. The line separates the models that are less or more that 2 units away from the best model
 plot(res)
+
+# Top models
 top <- weightable(res)
 top <- top[top$aicc <= min(top$aicc) + 2,]
 top
-summary(res@objects[[1]])
-plot(res, type="s")
 
-#Multimodel inference
+# Variable importance plot across all the models
+plot(res, type="s")
+# --> none of them reach to over 0.8
+
+#Multimodel inference - make inferences about various predictors across all possible models relative to their weights
+
+#To get the glmulti package to handle rma.uni objects, we must register a getfit method for such objects
 eval(metafor:::.glmulti)
+
 coef(res)
+
+# Organized table, getting the unconditional estimates
 mmi <- as.data.frame(coef(res))
 mmi <- data.frame(Estimate=mmi$Est, SE=sqrt(mmi$Uncond), Importance=mmi$Importance, row.names=row.names(mmi))
 mmi$z <- mmi$Estimate / mmi$SE
@@ -1060,17 +1075,17 @@ eval(metafor:::.MuMIn)
 full_model <- rma.mv(
     g,
     V = varcovmat_2_PD$mat,
-    mods = ~ Trait.type * Gradient.category - 1, 
+    mods = ~ Trait.type * Gradient.category, 
     random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
     data = dat_2,
     method = "ML"
   )
 
-model_selection <- dredge(full_model, trace=2) 
-subset(model_selection, delta <= 10, recalc.weights=FALSE)
+model_selection <- dredge(full_model, trace = 2) 
+subset(model_selection, delta <= 2, recalc.weights = FALSE)
 
 # Multimodel inference
-average.model <- model.avg(model_selection, revised.var=FALSE, fit = T)
+average.model <- model.avg(model_selection, revised.var=FALSE)
 summary(average.model) #Set revised.var = F to get same results as we would with the glmulti package
 
 # relative importance values for the predictors can be obtained with:
