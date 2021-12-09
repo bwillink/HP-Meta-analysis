@@ -1008,8 +1008,7 @@ res <- glmulti(g ~ Trait.type*Gradient.category-1,
                data=dat_2,
                V = varcovmat_2_PD$mat, 
                random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
-               level = 2, fitfunction = rma.glmulti, crit="aicc",
-               method = "ML")
+               level = 2, fitfunction = rma.glmulti, crit="aicc")
 # --> Check warnings: Redundant predictors dropped from the model. 
 # summary
 print(res)
