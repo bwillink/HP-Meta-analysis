@@ -855,8 +855,9 @@ forest.default(x= Q1m6$beta, sei =  Q1m6$se, ci.lb =  Q1m6$ci.lb, ci.ub =  Q1m6$
                 annotate=TRUE, showweights=T, header=F,
                 slab = c("Environment invertebrate infected", "Environment invertebrate uninfected", "Pollution invertebrate infected", "Pollution invertebrate uninfected", "Resource invertebrate infected", "Resource invertebrate uninfected", "Environment vertebrate infected", "Environment vertebrate uninfected", "Pollution vertebrate infected", "Pollution vertebrate uninfected", "Resource vertebrate infected", "Resource vertebrate uninfected"))
 ```
-Check this warning and error!
+
 ### Trait type x Stress type x Host type interaction
+This model should not be included in the model selection, because it is missing categories (we don't have data of fecundity from vertebrates)
 ```{r Q1-Trait-x-Host}
 Q1m7 <-
   rma.mv(
@@ -889,41 +890,7 @@ forest.default(x= Q1m8$beta, sei =  Q1m8$se, ci.lb =  Q1m8$ci.lb, ci.ub =  Q1m8$
                 annotate=TRUE, showweights=T, header=F,
                 slab = c("Environment invertebrate", "Pollution invertebrate", "Resource invertebrate", "Environment vertebrate", "Pollution vertebrate", "Resource vertebrate "))
 ```
-### Model selection
-```{r}
-#All models
-AICtab(Q1m1, Q1m2, Q1m3, Q1m4, Q1m5, Q1m6, Q1m7, Q1m8, mnames = LETTERS[1:8], delta = TRUE, weights = TRUE)
-# Without Q1m7
-AICtab(Q1m1, Q1m2, Q1m3, Q1m4, Q1m5, Q1m6, Q1m8, mnames = LETTERS[1:7], delta = TRUE, weights = TRUE)
-```
-#### Model inference
-```{r}
-# First, we evaluate some code that generates helper functions needed so that metafor and MuMIn could interact as necessary
-eval(metafor:::.MuMIn)
 
-# Now, we take the full model and fit the rest of the models and examine those models whose AICc value is no more than 10 units away from that of the best model
-full_model <- rma.mv(
-    g,
-    V = varcovmat_1_PD$mat,
-    mods = ~ Trait.category * Trait.type * Gradient.category - 1, 
-    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_1,
-    method = "ML"
-  )
-
-model_selection <- dredge(full_model, trace=2) 
-subset(model_selection, delta <= 10, recalc.weights=FALSE)
-
-# Multimodel inference
-average.model <- model.avg(model_selection, revised.var=FALSE) #fit = T, Set revised.var = F to get same results as we would with the glmulti package
-summary(average.model) 
-
-# relative importance values for the predictors can be obtained with:
-importance(model_selection)
-
-#How do we get model predictions?
-
-```
 
 ## Question 2 - Are resistance traits negatively affected by stressors
 ### Null model
@@ -992,9 +959,7 @@ forest.default(x= Q2m4$beta, sei =  Q2m4$se, ci.lb =  Q2m4$ci.lb, ci.ub =  Q2m4$
                 slab = c("Environment invertebrate intensity", "Environment invertebrate prevalence", "Environment vertebrate intensity", "Environment vertebrate prevalence", "Pollution invertebrate intensity", "Pollution invertebrate prevalence", "Pollution vertebrate intensity", "Pollution vertebrate prevalence", "Resource invertebrate intensity", "Resource invertebrate prevalence", "Resource vertebrate intensity", "Resource vertebrate prevalence"))
 ```
 ### Model selection
-```{r}
-AICtab(Q2m1, Q2m2, Q2m3, Q2m4, mnames = LETTERS[1:4], delta = TRUE, weights = TRUE)
-```
+This section is a work in progress...
 
 #### Using glmulti package
 ```{r}
@@ -1004,12 +969,15 @@ rma.glmulti <- function(formula, data, V, random, ...){
 }
 
 # Fit all models
-res <- glmulti(g ~ Trait.type*Gradient.category-1, 
+res <- glmulti(g ~ Trait.type*Gradient.category, 
                data=dat_2,
                V = varcovmat_2_PD$mat, 
                random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
                level = 2, fitfunction = rma.glmulti, crit="aicc")
+
 # --> Check warnings: Redundant predictors dropped from the model. 
+# --> Tried "intercept = F", to exclude the intercept from  the candidate models, and got "Error in x[, ii] : subscript out of bounds"
+
 # summary
 print(res)
 
@@ -1023,7 +991,7 @@ top
 
 # Variable importance plot across all the models
 plot(res, type="s")
-# --> none of them reach to over 0.8
+# --> none of them reach >= 0.8
 
 #Multimodel inference - make inferences about various predictors across all possible models relative to their weights
 
@@ -1044,8 +1012,26 @@ mmi <- mmi[order(mmi$Importance, decreasing=TRUE), c(1,2,4:7,3)]
 round(mmi, 4)
 
 #Multimodel predictions
-x <- c("Gradient.category" == "Environment", "Trait.type" == "Intensity")
+# --> Note: how (and when) can we re-fit the model with REML?
+#           how do we deal with interactions?
+
+# x <- data.frame("Gradient.category" = c("Environment", "Pollution", "Resource", "Environment", "Pollution", "Resource"), "Trait.type" = c("Intensity", "Intensity", "Intensity", "Prevalence", "Prevalence", "Prevalence"))
+# predict.glmulti(res, varweighting = "Buckland", newdata = x, icmethod = "Lukacs", se.fit = TRUE)
+
 preds <- list()
+
+x <- c("Gradient.categoryPollution" = T, "Gradient.categoryResource" = F, "Trait.typePrevalence" = T, "Gradient.categoryEnvironment:Trait.typeIntensity" = F, "Gradient.categoryPollution:Trait.typeIntensity" = F, 
+"Gradient.categoryResource:Trait.typeIntensity" = F, "Gradient.categoryEnvironment:Trait.typePrevalence" = F,
+"Gradient.categoryPollution:Trait.typePrevalence" = F, 
+"Gradient.categoryResource:Trait.typePrevalence" = F,
+"Trait.typePrevalence:Gradient.categoryResource" = F, 
+"Trait.typePrevalence:Gradient.categoryPollution" = F,
+"Trait.typePrevalence:Gradient.categoryEnvironment" = F,
+"Trait.typeIntensity:Gradient.categoryResource" = F,
+"Trait.typeIntensity:Gradient.categoryPollution" = F,
+"Trait.typeIntensity:Gradient.categoryEnvironment" = F)
+
+#Missing Gradient.categoryEnvironment and Trait.typeIntensity
  
 for (j in 1:res@nbmods) {
    model <- res@objects[[j]]
@@ -1065,7 +1051,7 @@ round(yhat + c(-1,1)*qnorm(.975)*se, 3)
 
 ```
 
-
+#### Using MuMIn package
 ```{r}
 # First, we evaluate some code that generates helper functions needed so that metafor and MuMIn could interact as necessary
 eval(metafor:::.MuMIn)
@@ -1081,7 +1067,8 @@ full_model <- rma.mv(
   )
 
 model_selection <- dredge(full_model, trace = 2) 
-subset(model_selection, delta <= 2, recalc.weights = FALSE)
+subset(model_selection, delta <= 10, recalc.weights = FALSE)
+# --> I am getting different weights (and therefore different unconditional estimates) than with the glmulti method
 
 # Multimodel inference
 average.model <- model.avg(model_selection, revised.var=FALSE)
@@ -1090,10 +1077,10 @@ summary(average.model) #Set revised.var = F to get same results as we would with
 # relative importance values for the predictors can be obtained with:
 importance(model_selection)
 
-
-#How do we get model predictions?
-
-predict(average.model, newdata = data.frame("Gradient.category" = c("Environment", "Pollution", "Resource", "Environment", "Pollution", "Resource"), "Trait.type" = c("Intensity", "Intensity", "Intensity", "Prevalence", "Prevalence", "Prevalence")), se.fit = T)
+#How do we get model predictions? - Still not working
+predict(average.model, se.fit = T)
+predict(average.model, newdata = data.frame(c("Gradient.categoryPollution" = T, "Gradient.categoryResource" = F, "Trait.typePrevalence" = T, "Gradient.categoryPollution:Trait.typePrevalence" = F, 
+"Gradient.categoryResource:Trait.typePrevalence" = F)), se.fit = T)
 ```
 
 
@@ -1234,38 +1221,7 @@ forest.default(x= Q3m7$beta, sei =  Q3m7$se, ci.lb =  Q3m7$ci.lb, ci.ub =  Q3m7$
                 slab = c("Environment invertebrate fecundity", "Environment invertebrate intensity", "Environment invertebrate prevalence", "Environment invertebrate survivorship", "Environment vertebrate intensity", "Environment vertebrate prevalence", "Environment vertebrate survivorship", "Pollution invertebrate fecundity", "Pollution invertebrate intensity", "Pollution invertebrate prevalence", "Pollution invertebrate survivorship", "Pollution vertebrate intensity", "Pollution vertebrate prevalence", "Pollution vertebrate survivorship", "Resource invertebrate fecundity", "Resource invertebrate intensity", "Resource invertebrate prevalence", "Resource invertebrate survivorship", "Resource vertebrate intensity", "Resource vertebrate prevalence", "Resource vertebrate survivorship"))
 
 ```
-### Model selection
-```{r}
-# Without Q3m2.1
-AICtab(Q3m1, Q3m2.2, Q3m3, Q3m4, Q3m5, Q3m6, Q3m7, mnames = LETTERS[1:7], delta = TRUE, weights = TRUE)
-# Without Q3m2.1 and Q3m7
-AICtab(Q3m1, Q3m2.2, Q3m3, Q3m4, Q3m5, Q3m6, mnames = LETTERS[1:6], delta = TRUE, weights = TRUE)
-```
-#### Model inference
-```{r}
-full_model <- rma.mv(
-    g,
-    V = varcovmat_3_PD$mat,
-    mods = ~ Trait.category * Trait.type * Gradient.category - 1, 
-    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_3,
-    method = "ML"
-  )
 
-model_selection <- dredge(full_model, trace=2) 
-subset(model_selection, delta <= 10, recalc.weights=FALSE)
-
-# Multimodel inference
-average.model <- model.avg(model_selection, revised.var=FALSE) #fit = T, Set revised.var = F to get same results as we would with the glmulti package
-summary(average.model) 
-
-# relative importance values for the predictors can be obtained with:
-importance(model_selection)
-
-#How do we get model predictions?
-#We should re-fit with REML
-
-```
 
 # Publication bias
 
