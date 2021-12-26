@@ -1176,7 +1176,6 @@ forest.default(x= Q3m2.2$beta, sei =  Q3m2.2$se, ci.lb =  Q3m2.2$ci.lb, ci.ub = 
                 slab = c("Epidemiological", "Fitness"))
 ```
 
-
 ### Trait category x Gradient category interaction
 ```{r Q3-Trait-x-Gradient}
 Q3m3 <-
@@ -1210,6 +1209,7 @@ forest.default(x= Q3m4$beta, sei =  Q3m4$se, ci.lb =  Q3m4$ci.lb, ci.ub =  Q3m4$
                 annotate=TRUE, showweights=T, header=F,
                 slab = c("Environment fecundity", "Environment intensity", "Environment prevalence", "Environment survivorship", "Pollution fecundity", "Pollution intensity", "Pollution prevalence", "Pollution survivorship", "Resource fecundity", "Resource intensity", "Resource prevalence", "Resource survivorship"))
 ```
+
 ### Trait category x Host type interaction
 ```{r Q3-Trait-x-Host}
 Q3m5 <-
@@ -1226,6 +1226,7 @@ forest.default(x= Q3m5$beta, sei =  Q3m5$se, ci.lb =  Q3m5$ci.lb, ci.ub =  Q3m5$
                 annotate=TRUE, showweights=T, header=F,
                 slab = c("Resistance invertebrate", "Fitness invertebrate", "Resistance vertebrate", "Fitness vertebrate"))
 ```
+
 ### Trait category x Invert/Vert x Stressor type
 ```{r Q3-Trait-x-Host}
 Q3m6 <-
@@ -1243,6 +1244,7 @@ forest.default(x= Q3m6$beta, sei =  Q3m6$se, ci.lb =  Q3m6$ci.lb, ci.ub =  Q3m6$
                 slab = c("Environment invertebrate epidemiological", "Environment invertebrate fitness", "Environment vertebrate epidemiological", "Environment vertebrate fitness", "Pollution invertebrate epidemiological", "Pollution invertebrate fitness", "Pollution vertebrate epidemiological", "Pollution vertebrate fitness", "Resource invertebrate epidemiological", "Resource invertebrate fitness", "Resource vertebrate epidemiological", "Resource vertebrate fitness"))
 
 ```
+
 ### Trait type x Invert/Vert x stressor type
 ```{r Q3-Trait-x-Host}
 Q3m7 <-
@@ -1289,159 +1291,295 @@ importance(model_selection.3)
 
 # Publication bias
 
-I tried to check for publication bias in our three data sets and see which correction methods would be suitable. The most common way to assess publication bias is to test whether studies with large standard errors tend to have larger effect sizes. Small studies have larger SEs, and because they are small, they are more likely to get published only if results are significant. In contrast, large studies, which have higher precision and have costed more money, are more likely to get published either way.
+The most common way to assess publication bias is to test whether studies with large standard errors/low precision/small sample size tend to have larger effect sizes. Small studies have larger SEs, and because they are small, they are more likely to get published only if results are significant. In contrast, large studies, which have higher precision and have costed more money, are more likely to get published either way. For this reason small studies can cause publication bias. 
 
 ### Funnel plots
-A very common way to assess publication bias is therefore to check whether studies with low precision have larger effects. The typical way to visualize this is through a funnel plot. Now, this is not entirely correct for us, as the effects are not independent. I don't know what is the best way to go about this, but for now I'm simply showing points from the same experiment in the same colour.
+A very common way to assess publication bias is therefore to check whether studies with low precision generally have larger effects. The typical way to visualize this is through a funnel plot with all effects. Now, this is not entirely correct for us, as the effects are not independent. Nakagawa et al 2021 (Methods Ecol Evol) suggest using conditional residuals for funnel plots. These residual plots take some of the non-independence into account, but are not perfect, as they assume: 1)sampling SE(sei) does not covary with moderators in meta-regression, 2) sampling SE is the same as the SE of the residuals and 3) sampling variances are not correlated. This last one is most certainly incorrect.
 
-**Note** I checked some previous studies that use multilevel regression models as we do here, to see what they do about publication bias. Sauer et al 2020 Ecology (101) acknowledged this problem and decided not to even show funnel plots: "Because of the complex non independence among effect sizes within a study (e.g., some studies had multiple effect sizes), we did not use funnel plots or rank correlation tests to assess publication bias (Lau et al. 2006, Civitello et al.2015)." Others (Yates et al. 2019 Environmental DNA (1); Salerno et al 2021 Global Change Biology (27); Brlik et al. 2020 JAE) acknowledge this problem, but still show funnel plots warning caution. They also conduct a version of Eggerts test which I do below.
+Estimation of conditional residuals is not available to rma.mv objects (which can include a sampling variance-covariance matrix). The available alternative is to ignore this covariation in sampling variance for the assessment of publication bias. This is a caveat that should be acknowledgend in the paper, yet I think it is a useful visualization nonetheless. To do these funnel plots I re-fit the best model as rma.uni for each data set. While not ideal, this the best current alternative suggested by Nakagawa et al 2021 (Methods Ecol Evol)
+
+**Note** I checked some previous studies that use multilevel regression models as we do here, to see what they do about publication bias. Sauer et al 2020 Ecology (101) acknowledged this problem and decided not to even show funnel plots: "Because of the complex non independence among effect sizes within a study (e.g., some studies had multiple effect sizes), we did not use funnel plots or rank correlation tests to assess publication bias (Lau et al. 2006, Civitello et al.2015)." Others (Yates et al. 2019 Environmental DNA (1); Salerno et al 2021 Global Change Biology (27); Brlik et al. 2020 JAE) acknowledge this problem, but still show funnel plots warning caution. They also conduct a version of Eggerts test somewhat in the same spirit as I do below.
 
 #### Data set 1: fitness effects of environmental stress
+For now, I'm using the best model for Question 1:Q1m7
 ```{r dat_1-funnel}
-# make new factor for colour grouping
-nlvl <- length(unique(dat_1$Experiment))
-pal <- wes_palette("Darjeeling1", nlvl, type = "continuous")
-dat_1$Exp_nn <- as.factor(x=dat_1$Experiment)
-levels(dat_1$Exp_nn) <- as.factor(seq(1:nlvl))
+# re fit as a mixed effects model with rma.uni
+# any fitting method other than "FE" works for a random/mixed effects model
+Q1m7.uni <-
+  rma.uni(
+    g ~ Trait.type:Gradient.category:Host.type.2 + Experiment + ID ,
+    vi = dat_1$var.g,
+    data = dat_1,
+    method = "REML"
+  )
 
-# plot funnel
-metafor::funnel(dat_1$g, dat_1$var.g, level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal[dat_1$Exp_nn], back = "white", refline=0, legend=TRUE)
+# get conditional residuals (residuals for each effect)
+Q1res <- rstandard.rma.uni(Q1m7.uni, type = "conditional")
 
-# maybe we want to visualize the two fitness traits separately
-dat_1_Surv <-dat_1[which(dat_1$Trait.type == "Survivorship"),]
+# create colour palette as  gradient of effect size g
+nlvl <- length(dat_1$g)
+pal <- colorRampPalette(brewer.pal(9, "YlOrRd"))(nlvl)
+pal <-pal[order(match(pal,dat_1$g))]
 
-# colour grouping
-nlvl <- length(unique(dat_1_Surv$Experiment))
-pal_Surv <- wes_palette("Darjeeling1", nlvl, type = "continuous")
-dat_1_Surv$Exp_nn <- as.factor(x=dat_1_Surv$Experiment)
-levels(dat_1_Surv$Exp_nn) <- as.factor(seq(1:nlvl))
-
-# plot funnel
-metafor::funnel(dat_1_Surv$g, dat_1_Surv$var.g, level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal[dat_1_Surv$Exp_nn], back = "white", refline=0, legend=TRUE)
-
-# for fecundity
-dat_1_Fecund <-dat_1[which(dat_1$Trait.type == "Fecundity"),]
-
-# colour grouping
-nlvl <- length(unique(dat_1_Fecund$Experiment))
-pal_Fecund <- wes_palette("Darjeeling1", nlvl, type = "continuous")
-dat_1_Fecund$Exp_nn <- as.factor(x=dat_1_Fecund$Experiment)
-levels(dat_1_Fecund$Exp_nn) <- as.factor(seq(1:nlvl))
-
-#plot funnel
-metafor::funnel(x = dat_1_Fecund$g, vi = dat_1_Fecund$var.g,  level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal[dat_1_Fecund$Exp_nn], back = "white", refline=0, legend=TRUE)
+# plot funnel with conditional residuals
+metafor::funnel(Q1res$resid, sqrt(dat_1$var.g), level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal, back = "white", refline=0, legend=TRUE, xlab = "Conditional residual", ylab = "Standard error")
 ```
 
-We can see that as SE increases (e.g > 1) all studies report significant negative fitness effects of environmental stress. In other words, it seems that very small studies tend to find more significant effects.
+We can see that as SE increases (e.g ~ 1) all studies report large negative fitness effects of environmental stress (large negative residuals). In other words, it seems that very small studies tend to find that environmental stress is more negative to fitness!
 
 #### Data set 2: resistance effects of environmental stress
+For now, I'm using the best model for Question 2: Q2m4
 ```{r dat_2-funnel}
-# make new factor for colour grouping
-nlvl <- length(unique(dat_2$Experiment))
-pal <- wes_palette("Darjeeling1", nlvl, type = "continuous")
-dat_2$Exp_nn <- as.factor(x=dat_2$Experiment)
-levels(dat_2$Exp_nn) <- as.factor(seq(1:nlvl))
+# re fit as a mixed effects model with rma.uni
+# any fitting method other than "FE" works for a random/mixed effects model
+Q2m4.uni <-
+  rma.uni(
+    g ~ Trait.type:Gradient.category:Host.type.2 + Experiment + ID ,
+    vi = dat_2$var.g,
+    data = dat_2,
+    method = "REML"
+  )
 
-# plot funnel
-metafor::funnel(dat_2$g, dat_2$var.g, level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal[dat_2$Exp_nn], back = "white", refline=0, legend=TRUE)
+# get conditional residuals (residuals for each effect)
+Q2res <- rstandard.rma.uni(Q2m4.uni, type = "conditional")
 
-# there is one extreme study with low precision and apparently a huge effect size. Which one is it?
-dat_2$Study[which(dat_2$var.g == max(dat_2$var.g))]
+# create colour palette as  gradient of effect size g
+nlvl <- length(dat_2$g)
+pal <- colorRampPalette(brewer.pal(9, "YlOrRd"))(nlvl)
+pal <-pal[order(match(pal,dat_2$g))]
 
-# let's see how it looks without that one
-dat_2_no <- dat_2[-which(dat_2$Study == "Carrington et al. 2013. PLOS NegTropDiseases"),]
-
-# make new factor for colour grouping
-nlvl <- length(unique(dat_2_no$Experiment))
-pal <- wes_palette("Darjeeling1", nlvl, type = "continuous")
-dat_2_no$Exp_nn <- droplevels(dat_2_no$Exp_nn)
-levels(dat_2_no$Exp_nn) <- as.factor(seq(1:nlvl))
-
-metafor::funnel(dat_2_no$g, dat_2_no$var.g, level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal[dat_2_no$Exp_nn], back = "white", refline=0, legend=TRUE)
-
-# maybe we want to visualize the two resistance traits separately
-dat_2_Int <-dat_2[which(dat_2$Trait.type == "Intensity"),]
-
-# colour grouping
-nlvl <- length(unique(dat_2_Int$Experiment))
-pal_Int <- wes_palette("Darjeeling1", nlvl, type = "continuous")
-dat_2_Int$Exp_nn <- as.factor(x=dat_2_Int$Experiment)
-levels(dat_2_Int$Exp_nn) <- as.factor(seq(1:nlvl))
-
-# plot funnel
-metafor::funnel(dat_2_Int$g, dat_2_Int$var.g, level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal[dat_2_Int$Exp_nn], back = "white", refline=0, legend=TRUE)
-
-# for prevalence
-dat_2_Pre <-dat_2_no[which(dat_2$Trait.type == "Prevalence"),]
-
-# colour grouping
-nlvl <- length(unique(dat_2_Pre$Experiment))
-pal_Pre <- wes_palette("Darjeeling1", nlvl, type = "continuous")
-dat_2_Pre$Exp_nn <- as.factor(x=dat_2_Pre$Experiment)
-levels(dat_2_Pre$Exp_nn) <- as.factor(seq(1:nlvl))
-
-#plot funnel
-metafor::funnel(x = dat_2_Pre$g, vi = dat_2_Pre$var.g,  level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal[dat_2_Pre$Exp_nn], back = "white", refline=0, legend=TRUE)
+# plot funnel with all conditional residuals
+metafor::funnel(Q2res$resid, sqrt(dat_2$var.g), level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal, back = "white", refline=0, legend=TRUE, xlab = "Conditional residual", ylab = "Standard error")
 ```
 
-### Modified Eggert's test
-Eggert's test is essentially a regression between effect sizes and precision. Studies with large SE have low precision. When precision is 0, the expected effect size  should be 0. Even if there is a real effect, without precision one shouldn't find it. So we are interested in the intercept of this regression (effect size when precision is 0) and testing whether this intercept differs from 0. If it does, we can suspect there is a bias caused by small studies, which can in turn be caused by publication bias.
+There is an outlier effect with extremely low precision. Amanda may want to double check this point. To be able to visualize the bulk of the data I plot the rest of the effects below.
 
-In this case we want to use the same multilevel approach as in our main models to accounts for the non-independence of effects coming from the same study (or conducted with the same parasite). I've seen versions of this with the effect sizes (g) or the residuals of null models (without fixed predictors). Here, I include both.
+```{r dat_2-funnel-no-outlier}
+out <- grep(x = dat_2$var.g, pattern = max(dat_2$var.g))
+
+pal <- pal[-out]
+
+metafor::funnel(Q2res$resid[-out], sqrt(dat_2$var.g[-out]), level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal, back = "white", refline=0, legend=TRUE, xlab = "Conditional residual", ylab = "Standard error")
+```
+
+Again, it seems that studies with low precision (sei > 1) tend to have disproportionally large effects. In this case, publication bias would result in over estimation of infection intensity under stressful conditions. 
+
+#### Data set 3: resistance and fitness effects of environmental stress
+```{r dat_3-funnel}
+# re fit as a mixed effects model with rma.uni
+# any fitting method other than "FE" works for a random/mixed effects model
+Q3m7.uni <-
+  rma.uni(
+    g ~ Trait.type:Gradient.category:Host.type.2 + Experiment + ID,
+    vi = dat_3$var.g,
+    data = dat_3,
+    method = "REML"
+  )
+
+# get conditional residuals (residuals for each effect)
+Q3res <- rstandard.rma.uni(Q3m7.uni, type = "conditional")
+
+# create colour palette as  gradient of effect size g
+nlvl <- length(dat_3$g)
+pal <- colorRampPalette(brewer.pal(9, "YlOrRd"))(nlvl)
+pal <-pal[order(match(pal,dat_3$g))]
+
+# plot funnel with all conditional residuals
+metafor::funnel(Q3res$resid, sqrt(dat_3$var.g), level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal, back = "white", refline=0, legend=TRUE, xlab = "Conditional residual", ylab = "Standard error")
+```
+Because this data set includes both the fitness and resistance effects it's not surprising that small studies are distributed on both sides of the funnel. This does not mean absence of publication bias as negative effects for fitness and positive effects for (-) resistance both would suggest that small studies tend to inflate the negative consequences of environmental stress. For the publication, I suggest we use -g for resistance effects (currently g = infection intensity or prevalence) and/or we use funnel plots for only datasets 1 and 2.
+
+### Two step approach to test for publication bias
+Following Nakagawa et al. (2021) we conduct a two-step approach to test for publication bias, that can be thought of as a modified Egger's test for multilevel meta analysis. First we include the effect sizes' standard error as the only moderator and including the same random effect structure as in our meta-analysis. If the slope of this moderator is significant, the estimated intercept provides a downwardly biased estimate of the overall meta-analytic effect (Doucouliagos 2012, 2014). In this case, we run a second meta regression with only the effect sizes' variances as moderators. The intercept in this case may still be biased, but less so.
 
 #### Data set 1: fitness effects of environmental stress
+For now, I'm using the best model for Question 1:Q1m7
 
-```{r dat_1-Eggert}
-# get residuals from null model
-dat_1$res <- rstandard.rma.mv(Q1m1)$res
+```{r dat_1-twostep-1}
+# get standard errors of effect sizes 
+dat_1$sei <- sqrt(dat_1$var.g)
 
-# calculate precision
-dat_1$precision <-  1/sqrt(dat_1$var.g)
-
-# meta regression with effect size
-rma.mv(g ~ precision,
+# meta regression with SE
+rma.mv(g ~ 1 + sei,
     V = varcovmat_1_PD$mat,
-    random = list( ~ 1 | Experiment/ID, ~ 1 | Parasite),
-    data = dat_1,
-    method = "REML")
-
-# meta regression with residual
-rma.mv(res ~ precision,
-    V = varcovmat_1_PD$mat,
-    random = list( ~ 1 | Experiment/ID, ~ 1 | Parasite),
+    random = list( ~ 1 | Experiment, ~ 1 | ID),
     data = dat_1,
     method = "REML")
 ```
 
-Both cases suggest bias, in that even infinitely small studies would find a negative effect of environmental stress on fitness.
+The slope is negative and significant. Small studies report large and negative effect sizes!! Would this be the case without accounting for covariance in sampling errors?
+
+```{r dat_1-twostep-1-RVE}
+rma.mv(g ~ 1 + sei,
+    V = var.g,
+    random = list( ~ 1 | Experiment, ~ 1 | ID),
+    data = dat_1,
+    method = "REML")
+```
+
+The results are qualitatively similar and both suggest bias. Because the slope of sei is significant, variance is a better moderator according to (Doucouliagos 2012, 2014). Here, I show for models with and without sampling error covariance within experiments
+
+```{r dat_1-twostep-2}
+rma.mv(g ~ 1 + var.g,
+    V = varcovmat_1_PD$mat,
+    random = list( ~ 1 | Experiment, ~ 1 | ID),
+    data = dat_1,
+    method = "REML")
+
+rma.mv(g ~ 1 + var.g,
+    V = var.g,
+    random = list( ~ 1 | Experiment, ~ 1 | ID),
+    data = dat_1,
+    method = "REML")
+```
+
+Again, precision effects are similar and significant, suggesting publication bias. Thus, to "account" for potential effects of publication bias, we need to include variance as a moderator.
+
+Including the variance-covariance error matrix within studies
+```{r dat_1-PB-adjusted}
+Q1m7.B <-
+  rma.mv(
+    g ~ Trait.type:Gradient.category:Host.type.2 + var.g -1,
+    V = varcovmat_1_PD$mat,
+    random = list( ~ 1 | ID, ~ 1 | Experiment),
+    data = dat_1,
+    method = "REML"
+  )
+
+summary(Q1m7.B)
+
+forest.default(x= Q1m7.B$beta, sei =  Q1m7.B$se, ci.lb = Q1m7.B$ci.lb, ci.ub = Q1m7.B$ci.ub, 
+                annotate=TRUE, showweights=T, header=F, 
+                slab = c("variance","Environment invertebrate fecundity", "Environment invertebrate survivorship", "Pollution invertebrate fecundity", "Pollution invertebrate survivorship", "Resource invertebrate fecundity", "Resource invertebrate survivorship", "Environment vertebrate survivorship", "Pollution vertebrate survivorship", "Resource vertebrate survivorship"))
+```
+
+Using the robust variance estimator instead of the variance-covariance error matrix within studies
+```{r dat_1-PB-adjusted-RVE}
+Q1m7.B.R <-
+  rma.mv(
+    g ~ Trait.type:Gradient.category:Host.type.2 + var.g -1,
+    V = var.g,
+    random = list( ~ 1 | ID, ~ 1 | Experiment),
+    data = dat_1,
+    method = "REML"
+  )
+
+Q1m7.B.R_est <- clubSandwich::coef_test(Q1m7.B.R, vcov = "CR2")
+
+forest.default(x= Q1m7.B.R_est$beta, sei =  Q1m7.B.R_est$SE, ci.lb = (Q1m7.B.R_est$beta - 1.96 * Q1m7.B.R_est$SE) , ci.ub =(Q1m7.B.R_est$beta + 1.96 * Q1m7.B.R_est$SE), 
+                annotate=TRUE, showweights=T, header=F, 
+                slab = c("variance","Environment invertebrate fecundity", "Environment invertebrate survivorship", "Pollution invertebrate fecundity", "Pollution invertebrate survivorship", "Resource invertebrate fecundity", "Resource invertebrate survivorship", "Environment vertebrate survivorship", "Pollution vertebrate survivorship", "Resource vertebrate survivorship"))
+```
 
 #### Data set 2: resistance effects of environmental stress
 
-```{r dat_2-Eggert}
-# get residuals from null model
-dat_2$res <- rstandard.rma.mv(Q2m1)$res
+For now, I'm using the best model for Question 2: Q2m4
 
-# calculate precision
-dat_2$precision <-  1/sqrt(dat_2$var.g)
+```{r dat_2-twostep-1}
+# get standard errors of effect sizes 
+dat_2$sei <- sqrt(dat_2$var.g)
 
-# meta regression with effect size
-rma.mv(g ~ precision,
+# meta regression with SE
+rma.mv(g ~ 1 + sei,
     V = varcovmat_2_PD$mat,
-    random = list( ~ 1 | Experiment/ID, ~ 1 | Parasite),
-    data = dat_2,
-    method = "REML")
-
-# meta regression with residual
-rma.mv(res ~ precision,
-    V = varcovmat_2_PD$mat,
-    random = list( ~ 1 | Experiment/ID, ~ 1 | Parasite),
+    random = list( ~ 1 | Experiment, ~ 1 | ID),
     data = dat_2,
     method = "REML")
 ```
-Even when we include Carrington et al 2013, we don't find evidence of publication bias here.
 
-### What to do if there is bias?
-The studies I saw using a version Eggert's test and find evidence of publication bias, define a precision/study size threshold, remove studies below this threshold and see if that alters their results substantially. This is not an elegant solution but might be the best we have as all methods that I could find to adjust effect sizes do not work for multilevel models (rma.mv).
+Without var-covar matrix?
+```{r dat_2-twostep-1-RVE}
+# meta regression with SE
+rma.mv(g ~ 1 + sei,
+    V = var.g,
+    random = list( ~ 1 | Experiment, ~ 1 | ID),
+    data = dat_2,
+    method = "REML")
+```
+
+Here there is no evidence of small study effects so we don't need to model sampling variance.
+
+Here I include the final model under the robust variance estimator.
+```{r dat_2-final-RVE}
+Q2m4.R  <-
+  rma.mv(
+    g ~ Trait.type:Host.type.2:Gradient.category -1,
+    V = var.g,
+    random = list( ~ 1 | ID, ~ 1 | Experiment),
+    data = dat_2,
+    method = "REML"
+  )
+
+# here we need to remove Resource vertebrate prevalence as there are not enough studies to estimate this effect robustly
+Q2m4.R_est <- clubSandwich::coef_test(Q2m4.R, vcov = "CR2")[-12,]
+
+forest.default(x= Q2m4.R_est$beta, sei =  Q2m4.R_est$SE, ci.lb = (Q2m4.R_est$beta - 1.96 * Q2m4.R_est$SE) , ci.ub =(Q2m4.R_est$beta + 1.96 * Q2m4.R_est$SE), 
+                annotate=TRUE, showweights=T, header=F, 
+                slab = c("Environment invertebrate intensity", "Environment invertebrate prevalence", "Environment vertebrate intensity", "Environment vertebrate prevalence", "Pollution invertebrate intensity", "Pollution invertebrate prevalence", "Pollution vertebrate intensity", "Pollution vertebrate prevalence", "Resource invertebrate intensity", "Resource invertebrate prevalence", "Resource vertebrate intensity"))
+```
+
+#### Data set 3: resistance and fitness effects of environmental stress
+For now, I'm using the best model for Question 3: Q3m7
+```{r dat_3-twostep-1}
+# get standard errors of effect sizes 
+dat_3$sei <- sqrt(dat_3$var.g)
+
+# meta regression with SE
+rma.mv(g ~ 1 + sei,
+    V = varcovmat_3_PD$mat,
+    random = list( ~ 1 | Experiment, ~ 1 | ID),
+    data = dat_3,
+    method = "REML")
+```
+
+Without the var-covar matrix
+```{r dat_3-twostep-1-RVE}
+
+# meta regression with SE
+rma.mv(g ~ 1 + sei,
+    V = var.g,
+    random = list( ~ 1 | Experiment, ~ 1 | ID),
+    data = dat_3,
+    method = "REML")
+```
+
+As in data set 1, effects of small studies are dominated by negative effect sizes. Because the slope of sei is significant the variance is a better moderator for the overall effect.
+
+Including the variance-covariance error matrix within studies
+```{r dat_3-PB-adjusted}
+Q3m7.B <-
+  rma.mv(
+    g ~ Trait.type:Gradient.category:Host.type.2 + var.g -1,
+    V = varcovmat_3_PD$mat,
+    random = list( ~ 1 | ID, ~ 1 | Experiment),
+    data = dat_3,
+    method = "REML"
+  )
+
+summary(Q3m7.B)
+
+forest.default(x= Q3m7.B$beta, sei =  Q3m7.B$se, ci.lb = Q3m7.B$ci.lb, ci.ub = Q3m7.B$ci.ub, 
+                annotate=TRUE, showweights=T, header=F, 
+                slab = c("variance", "Environment invertebrate fecundity", "Environment invertebrate intensity", "Environment invertebrate prevalence", "Environment invertebrate survivorship", "Environment vertebrate intensity", "Environment vertebrate prevalence", "Environment vertebrate survivorship", "Pollution invertebrate fecundity", "Pollution invertebrate intensity", "Pollution invertebrate prevalence", "Pollution invertebrate survivorship", "Pollution vertebrate intensity", "Pollution vertebrate prevalence", "Pollution vertebrate survivorship", "Resource invertebrate fecundity", "Resource invertebrate intensity", "Resource invertebrate prevalence", "Resource invertebrate survivorship", "Resource vertebrate intensity", "Resource vertebrate prevalence", "Resource vertebrate survivorship"))
+```
+
+Using the robust variance estimator instead of the variance-covariance error matrix within studies
+```{r dat_3-PB-adjusted-RVE}
+Q3m7.B.R <-
+  rma.mv(
+    g ~ Trait.type:Gradient.category:Host.type.2 + var.g -1,
+    V = var.g,
+    random = list( ~ 1 | ID, ~ 1 | Experiment),
+    data = dat_3,
+    method = "REML"
+  )
+
+Q3m7.B.R_est <- clubSandwich::coef_test(Q3m7.B.R, vcov = "CR2")
+
+forest.default(x= Q3m7.B.R_est$beta, sei =  Q3m7.B.R_est$SE, ci.lb = (Q3m7.B.R_est$beta - 1.96 * Q3m7.B.R_est$SE) , ci.ub =(Q3m7.B.R_est$beta + 1.96 * Q3m7.B.R_est$SE), 
+                annotate=TRUE, showweights=T, header=F, 
+                slab = c("variance","Environment invertebrate fecundity", "Environment invertebrate intensity", "Environment invertebrate prevalence", "Environment invertebrate survivorship", "Environment vertebrate intensity", "Environment vertebrate prevalence", "Environment vertebrate survivorship", "Pollution invertebrate fecundity", "Pollution invertebrate intensity", "Pollution invertebrate prevalence", "Pollution invertebrate survivorship", "Pollution vertebrate intensity", "Pollution vertebrate prevalence", "Pollution vertebrate survivorship", "Resource invertebrate fecundity", "Resource invertebrate intensity", "Resource invertebrate prevalence", "Resource invertebrate survivorship", "Resource vertebrate intensity", "Resource vertebrate prevalence", "Resource vertebrate survivorship"))
+```
 
 ### Weighting the effects of (small) studies
 A related question that one could want to check is how different studies contribute to the overall effects to see. In other words is our main result being driven by a few studies? Here I compute and plot a few measures of outlier/influence diagnostics.
@@ -1455,11 +1593,11 @@ I'm also calculating the influence statistics cooks distance and dfbetas at the 
 A value is influential if "The hat value is larger than 3×(𝑝/𝑘)." where p is the number of coefficients and k the number of cases.
 
 #### Data set 1: fitness effects of environmental stress
-I'm running the analysis here for the model with the lowest AIC (Q1m4). We should probably do it for which ever model is our main model in the manuscript (probably this one?)
+I'm running the analysis here for the model with the lowest AIC (Q1m7). We should probably do it for whichever model is our main model in the manuscript (probably this one?)
 
 ```{r dat_1-influence}
 # Cook's distance
-Cook_dat1 <- cooks.distance(Q1m4, progbar=TRUE, dat_1$Study, reestimate=TRUE, parallel="multicore", ncpus = 2)
+Cook_dat1 <- cooks.distance(Q1m7, progbar=TRUE, dat_1$Study, reestimate=TRUE, parallel="multicore", ncpus = 2)
 
 # how are these distances distributes?
 hist(Cook_dat1)
@@ -1468,7 +1606,7 @@ hist(Cook_dat1)
 Cook_dat1[which(Cook_dat1 > 1)]
 
 # dfbetas
-dfbetas_dat1 <- dfbetas.rma.mv(Q1m4, progbar=TRUE, dat_1$Study, reestimate=TRUE, parallel="multicore")
+dfbetas_dat1 <- dfbetas.rma.mv(Q1m7, progbar=TRUE, dat_1$Study, reestimate=TRUE, parallel="multicore")
 
 # Which are the most influential studies?
 dfbetas_dat1[abs(dfbetas_dat1[,1])>1 | abs(dfbetas_dat1[,2])>1
@@ -1476,10 +1614,10 @@ dfbetas_dat1[abs(dfbetas_dat1[,1])>1 | abs(dfbetas_dat1[,2])>1
              | abs(dfbetas_dat1[,5])>1 | abs(dfbetas_dat1[,6])>1,]
 
 # hat values
-hat_dat1 <- hatvalues(Q1m4) 
+hat_dat1 <- hatvalues(Q1m7) 
 
 # Which are the most influential effects?
-inf_cutoff <- 3 * length(Q1m4$beta)/nrow(dat_1)
+inf_cutoff <- 3 * length(Q1m7$beta)/nrow(dat_1)
 
 dat_1$Study[hat_dat1 > inf_cutoff]
 ```
@@ -1553,8 +1691,90 @@ Heterogeneity is important to know if the pooled effect size can be interpreted 
 ## I2 statistic
 Is one of the most commonly reported measures of heterogeneity. It captures the "percentage of variability in the effect sizes that is not caused by sampling error". That is, heterogeneity in true effect sizes. It tells us how much true heterogeneity there is *relative* to sampling error.
 
-### Question 1
+### I2 formula
 
+```{r}
+#' @title Parametric simulation 
+#' @description Function for calculating I2 estimates using parametric simulations of model estimates taken from metafor. Note that the effectiveness of these simulations depends on the accuracy of model variance estimates.
+#' @param estimate The estimate (i.e. variance) from a metafor model
+#' @param sims The number of simulations 
+#' @param n The sample size used in estimating the variance 
+#' @author Daniel Noble - daniel.noble@anu.edu.au
+#' @export
+simMonteCarlo <- function(estimate, n, sims){
+  tmp <- data.frame(num = base::rep(1:sims, each = n), 
+                    y = stats::rnorm(n*sims, 0, base::sqrt(estimate)))
+  Var <- tmp %>% dplyr::group_by(num) %>% dplyr::summarise(Mean_var = stats::var(y))
+  return(as.numeric(Var$Mean_var))
+}
+
+## NOTE about PIPE: Run usethis::use_pipe() in the console. The package usethis will add what you need to import the pipe to your NAMESPACE and it will also drop warnings in checks
+
+# Function for  rounding a data frame
+round_df <- function(x, digits) {
+  numeric_columns <- sapply(x, class) == 'numeric'
+  x[numeric_columns] <-  round(x[numeric_columns], digits)
+  x
+}
+
+# Function for estimating I2 
+I2 <- function(model, v, ME = FALSE, sims = 1500, phylo = FALSE, obs = FALSE){
+  
+  if(class(model) != "rma.mv" && class(model) != "rma"){
+    stop("The model object is not of class 'metafor'")
+  }
+  
+  wi <- 1/v  #weight
+  Vw <- sum((wi) * (length(wi) - 1))  / (((sum(wi)^2) - sum((wi)^2)))
+  
+  if("rma.mv" %in% class(model) | "rma" %in% class(model)){
+    # Monte Carlo Simulations
+    # From metafor extract the important statistics
+    sigma2 <- matrix(model$sigma2, nrow = 1, ncol = length(model$sigma2))
+    colnames(sigma2) <- model$s.names
+    sigmaN <- model$s.nlevels
+    
+    if(obs == FALSE){
+      stop("Please add the name of the observation-level random effect, obs. If models do not include this, re-run models including (~1|obs) in the random effect list")
+    }
+    
+    #For each variance estimate use Monte Carlo simulation of data
+    Sims <- data.frame(mapply(function(x,y) simMonteCarlo(x, y, sims = sims), x = sigma2, y = sigmaN))
+    colnames(Sims) <- colnames(sigma2) 
+    
+    #Calculate total variance
+    VT <- rowSums(cbind(Sims, Vw))
+    Vt <- rowSums(Sims)  # remove Vw
+    
+    # For each variance component divide by the total variance. Note this needs to be fixed for phylo, but does deal with variable random effects.
+    I2_re <- Sims / VT
+    I2_total <- data.frame(Vt / VT)
+    
+    tmpMatrix <- data.frame(I2_re[, -match("ID", colnames(I2_re))], total = I2_total)
+    names(tmpMatrix) = c(colnames(I2_re)[!colnames(I2_re) %in% 'ID'], 'total')
+      
+    CI <- lapply(tmpMatrix, function(x) stats::quantile(x, c(0.025, 0.975), na.rm = TRUE))
+    I_CI <- as.data.frame(do.call(rbind, CI))
+    colnames(I_CI) <- c("2.5% CI", "97.5% CI")
+    I2_table <- cbind(I2_Est. = colMeans(tmpMatrix), I_CI )
+    
+    class(I2_table) <- c("metaAidR", "data.frame")
+    
+    return(round_df(I2_table, digits = 4))
+  }
+}
+```
+
+
+### Question 1
+First  I calculate I2 using the formula above from Nakagawa and Santos (2012) for the model without the var-covar matrix
+
+```{r  dat_1-I2-RVE}
+I2.Q1m7 <- I2(Q1m7.B.R, v = dat_1$var.g, obs = "ID")*100
+I2.Q1m7
+```
+
+If the variance-covariance matrix is included following the metafor example, total I2 becomes nearly 100%
 ```{r dat_1-I2}
 # we account for covariance in sampling errors by using V, but assuming equal heterogeneity between fecundity vs survival and between environment, pollution and resources.
 
@@ -1562,28 +1782,34 @@ Is one of the most commonly reported measures of heterogeneity. It captures the 
 W <- solve(varcovmat_1_PD$mat)
 
 # model matrix
-X <- model.matrix(Q1m4)
+X <- model.matrix(Q1m7.B)
 
 # estimate heterogeneity
 P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
 
 # overall I2: how much of total variance is attributed to heterogeneity
-100 * sum(Q1m4$sigma2) / (sum(Q1m4$sigma2) + (Q1m4$k-Q1m4$p)/sum(diag(P)))
+100 * sum(Q1m7.B$sigma2) / (sum(Q1m7.B$sigma2) + (Q1m7.B$k-Q1m7.B$p)/sum(diag(P)))
 
-# Heterogeneity between experiments, within experiments, between parasites
-100 * Q1m4$sigma2 / (sum(Q1m4$sigma2) + (Q1m4$k-Q1m4$p)/sum(diag(P)))
+# Heterogeneity within experiments, between experiments, between parasites
+100 * Q1m7.B$sigma2 / (sum(Q1m7.B$sigma2) + (Q1m7.B$k-Q1m7$p)/sum(diag(P)))
 
-sav <- confint(Q1m4)
-#profile(Q1m4)
+sav <- confint(Q1m7.B)
 
 # confidence intervals for I2
-100 * sav[[1]]$random[1,2:3] /(sum(Q1m4$sigma2) + (Q1m4$k-Q1m4$p)/sum(diag(P))) ### CI for experiment-level I^2
-100 * sav[[2]]$random[1,2:3] / (sum(Q1m4$sigma2)+ (Q1m4$k-Q1m4$p)/sum(diag(P))) ### CI for the ID-level I^2
-100 * sav[[3]]$random[1,2:3] / (sum(Q1m4$sigma2) + (Q1m4$k-Q1m4$p)/sum(diag(P)))  ### CI for the parasite-level I^2
+100 * sav[[1]]$random[1,2:3] /(sum(Q1m7.B$sigma2) + (Q1m7.B$k-Q1m7.B$p)/sum(diag(P))) ### CI for ID-level I^2
+100 * sav[[2]]$random[1,2:3] / (sum(Q1m7.B$sigma2)+ (Q1m7.B$k-Q1m7.B$p)/sum(diag(P))) ### CI for the experiment-level I^2
+#100 * sav[[3]]$random[1,2:3] / (sum(Q1m7$sigma2) + (Q1m7$k-Q1m7$p)/sum(diag(P)))  ### CI for the parasite-level I^2
 ```
 
 ### Question 2
+First  I calculate I2 using the formula above from Nakagawa and Santos (2012) for the model without the var-covar matrix
 
+```{r  dat_2-I2-RVE}
+I2.Q2m4 <- I2(Q2m4.R, v = dat_2$var.g, obs = "ID")*100
+I2.Q2m4
+```
+
+If the variance-covariance matrix is included following the metafor example, total I2 becomes nearly 100%
 ```{r dat_2-I2}
 # we account for covariance in sampling errors by using V, but assuming equal heterogeneity between fecundity vs survival and between environment, pollution and resources.
 
@@ -1591,28 +1817,34 @@ sav <- confint(Q1m4)
 W <- solve(varcovmat_2_PD$mat)
 
 # model matrix
-X <- model.matrix(Q2m3)
+X <- model.matrix(Q2m4)
 
 # estimate heterogeneity
 P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
 
 # overall I2: how much of total variance is attributed to heterogeneity
-100 * sum(Q2m3$sigma2) / (sum(Q2m3$sigma2) + (Q2m3$k-Q2m3$p)/sum(diag(P)))
+100 * sum(Q2m4$sigma2) / (sum(Q2m4$sigma2) + (Q2m4$k-Q2m4$p)/sum(diag(P)))
 
 # Heterogeneity between experiments, within experiments, between parasites
-100 * Q2m3$sigma2 / (sum(Q2m3$sigma2) + (Q2m3$k-Q2m3$p)/sum(diag(P)))
+100 * Q2m4$sigma2 / (sum(Q2m4$sigma2) + (Q2m4$k-Q2m4$p)/sum(diag(P)))
 
-sav2 <- confint(Q2m3)
-#profile(Q2m3)
+sav2 <- confint(Q2m4)
 
 # confidence intervals for I2
-100 * sav2[[1]]$random[1,2:3] /(sum(Q2m3$sigma2) + (Q2m3$k-Q2m3$p)/sum(diag(P))) ### CI for experiment-level I^2
-100 * sav2[[2]]$random[1,2:3] / (sum(Q2m3$sigma2)+ (Q2m3$k-Q2m3$p)/sum(diag(P))) ### CI for the ID-level I^2
-100 * sav2[[3]]$random[1,2:3] / (sum(Q2m3$sigma2) + (Q2m3$k-Q2m3$p)/sum(diag(P)))  ### CI for the parasite-level I^2
+100 * sav2[[1]]$random[1,2:3] /(sum(Q2m4$sigma2) + (Q2m4$k-Q2m4$p)/sum(diag(P))) ### CI for experiment-level I^2
+100 * sav2[[2]]$random[1,2:3] / (sum(Q2m4$sigma2)+ (Q2m4$k-Q2m4$p)/sum(diag(P))) ### CI for the ID-level I^2
+#100 * sav2[[3]]$random[1,2:3] / (sum(Q2m4$sigma2) + (Q2m4$k-Q2m3$p)/sum(diag(P)))  ### CI for the parasite-level I^2
 ```
 
-
 ### Question 3
+First  I calculate I2 using the formula above from Nakagawa and Santos (2012) for the model without the var-covar matrix
+
+```{r  dat_3-I2-RVE}
+I2.Q3m7 <- I2(Q3m7.B.R, v = dat_3$var.g, obs = "ID")*100
+I2.Q3m7
+```
+
+If the variance-covariance matrix is included following the metafor example, total I2 becomes nearly 100%
 
 ```{r dat_3-I2}
 # we account for covariance in sampling errors by using V, but assuming equal heterogeneity between fecundity vs survival and between environment, pollution and resources.
@@ -1621,202 +1853,79 @@ sav2 <- confint(Q2m3)
 W <- solve(varcovmat_3_PD$mat)
 
 # model matrix
-X <- model.matrix(Q3m4)
+X <- model.matrix(Q3m7.B)
 
 # estimate heterogeneity
 P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
 
 # overall I2: how much of total variance is attributed to heterogeneity
-100 * sum(Q3m4$sigma2) / (sum(Q3m4$sigma2) + (Q3m4$k-Q3m4$p)/sum(diag(P)))
+100 * sum(Q3m7.B$sigma2) / (sum(Q3m7.B$sigma2) + (Q3m7.B$k-Q3m7.B$p)/sum(diag(P)))
 
 # Heterogeneity between experiments, within experiments, between parasites
-100 * Q3m4$sigma2 / (sum(Q3m4$sigma2) + (Q3m4$k-Q3m4$p)/sum(diag(P)))
+100 * Q3m7.B$sigma2 / (sum(Q3m7.B$sigma2) + (Q3m7.B$k-Q3m7.B$p)/sum(diag(P)))
 
-sav2 <- confint(Q3m4)
-#profile(Q3m4)
+sav3 <- confint(Q3m7.B)
 
 # confidence intervals for I2
-100 * sav2[[1]]$random[1,2:3] /(sum(Q3m4$sigma2) + (Q3m4$k-Q3m4$p)/sum(diag(P))) ### CI for experiment-level I^2
-100 * sav2[[2]]$random[1,2:3] / (sum(Q3m4$sigma2)+ (Q3m4$k-Q3m4$p)/sum(diag(P))) ### CI for the ID-level I^2
-100 * sav2[[3]]$random[1,2:3] / (sum(Q3m4$sigma2) + (Q3m4$k-Q3m4$p)/sum(diag(P)))  ### CI for the parasite-level I^2
+100 * sav3[[1]]$random[1,2:3] /(sum(Q3m7.B$sigma2) + (Q3m7.B$k-Q3m7.B$p)/sum(diag(P))) ### CI for ID-level I^2
+100 * sav3[[2]]$random[1,2:3] / (sum(Q3m7.B$sigma2)+ (Q3m7.B$k-Q3m7.B$p)/sum(diag(P))) ### CI for the experiment-level I^2
+#100 * sav3[[3]]$random[1,2:3] / (sum(Q3m7.B$sigma2) + (Q3m7.B$k-Q3m7.B$p)/sum(diag(P)))  ### CI for the parasite-level I^2
 ```
 
-## Predicted effects
-Another way to assess heterogeneity is to look at the random effects at the level of experiments or effect ID (the larger variance components) and see if there are specific experiments or effects that deviate from 0.
+## Visualizations
+Orchard plots are a useful visualization technique for the distribution of effect size  (Nakagawa et al 2020). These plots cannot accommodate var-covar error matrices or covariates. For now, I will exclude host type and look at effects of each gradient category and trait type.
 
 ### Question 1
-```{r dat_1-random_pred}
 
-# between experiment effects
-random <- ranef(Q1m4)
-random_exp <- data.frame(random$Experiment)
-random_exp$Experiment <- rownames(random_exp)
+```{r Q1-orchard, message=FALSE}
+Q1m7.1 <-
+  rma.mv(
+    g ~ Gradient.category:Trait.type -1,
+    V = var.g,
+    random = list( ~ 1 | ID, ~ 1 | Experiment),
+    data = dat_1,
+    method = "REML"
+  )
 
-for (i in 1:nrow(random_exp)){
-  random_exp$gr[i] <- dat_1$Gradient.category[dat_1$Experiment == random_exp$Experiment[i]][1]
-} 
-
-random_exp <- random_exp[order(random_exp$intrcpt),] 
-random_exp <- random_exp[order(random_exp$gr),] 
-
-pal <- wes_palette("IsleofDogs1", n = 3)
-Exp_het <-
-  ggplot(data = random_exp, aes(x = Experiment, colour = gr)) +
-  geom_errorbar(aes(ymin = pi.lb, ymax = pi.ub), size = 2) +
-  scale_x_discrete(limits = random_exp$Experiment) +
-  theme_light(base_size = 16) +
-  theme(
-    panel.grid.major.x = element_blank(),
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank()
-  ) +
-  scale_colour_manual(values = pal, name = "Stressor") +
-  labs(y = "prediction interval")
-
-Exp_het
-
-# within experiment effects
-random_id <- data.frame(random$`Experiment/ID`)
-random_id$ID <- as.factor(dat_1$ID)
-
-for (i in 1:nrow(random_id)){
-  random_id$gr[i] <- dat_1$Gradient.category[i]
-} 
-
-random_id <- random_id[order(random_id$intrcpt),] 
-random_id <- random_id[order(random_id$gr),] 
-
-pal <- wes_palette("IsleofDogs1", n = 3)
-Id_het <-
-  ggplot(data = random_id, aes(x = ID, colour = gr)) +
-  geom_errorbar(aes(ymin = pi.lb, ymax = pi.ub), size = 1) +
-  scale_x_discrete(limits = random_id$ID) +
-  theme_light(base_size = 16) +
-  theme(
-    panel.grid.major.x = element_blank(),
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank()
-  ) +
-  scale_colour_manual(values = pal, name = "Stressor") +
-  labs(y = "prediction interval")
-
-Id_het
+pal <- RColorBrewer::brewer.pal(6,"Spectral")
+orchard_plot(Q1m7.1, mod = "var.g", xlab = "Standardised mean difference", transfm = "none", angle = 45, alpha = 0.7)+
+ scale_fill_manual(values = pal) + scale_colour_manual(values = pal) #+ 
+scale_y_discrete( labels= c("Environment:Fecundity", "Pollution:Fecundity",  "Resource:Fecundity","Environment:Survival", "Pollution:Survival", "Resource:Survival"))
 ```
 
 ### Question 2
-```{r dat_2-random_pred}
 
-# between experiment effects
-random <- ranef(Q2m3)
-random_exp <- data.frame(random$Experiment)
-random_exp$Experiment <- rownames(random_exp)
+```{r Q2-orchard, message=FALSE}
+Q2m4.1 <-
+  rma.mv(
+    g ~ Gradient.category:Trait.type -1,
+    V = var.g,
+    random = list( ~ 1 | ID, ~ 1 | Experiment),
+    data = dat_2,
+    method = "REML"
+  )
 
-for (i in 1:nrow(random_exp)){
-  random_exp$gr[i] <- dat_2$Gradient.category[dat_2$Experiment == random_exp$Experiment[i]][1]
-} 
-
-random_exp <- random_exp[order(random_exp$intrcpt),] 
-random_exp <- random_exp[order(random_exp$gr),] 
-
-pal <- wes_palette("IsleofDogs1", n = 3)
-Exp_het <-
-  ggplot(data = random_exp, aes(x = Experiment, colour = gr)) +
-  geom_errorbar(aes(ymin = pi.lb, ymax = pi.ub), size = 1.5) +
-  scale_x_discrete(limits = random_exp$Experiment) +
-  theme_light(base_size = 16) +
-  theme(
-    panel.grid.major.x = element_blank(),
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank()
-  ) +
-  scale_colour_manual(values = pal, name = "Stressor") +
-  labs(y = "prediction interval")
-
-Exp_het
-
-# within experiment effects
-random_id <- data.frame(random$`Experiment/ID`)
-random_id$ID <- as.factor(dat_2$ID)
-
-for (i in 1:nrow(random_id)){
-  random_id$gr[i] <- dat_2$Gradient.category[i]
-} 
-
-random_id <- random_id[order(random_id$intrcpt),] 
-random_id <- random_id[order(random_id$gr),] 
-
-pal <- wes_palette("IsleofDogs1", n = 3)
-Id_het <-
-  ggplot(data = random_id, aes(x = ID, colour = gr)) +
-  geom_errorbar(aes(ymin = pi.lb, ymax = pi.ub), size = 1) +
-  scale_x_discrete(limits = random_id$ID) +
-  theme_light(base_size = 16) +
-  theme(
-    panel.grid.major.x = element_blank(),
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank()
-  ) +
-  scale_colour_manual(values = pal, name = "Stressor") +
-  labs(y = "prediction interval")
-
-Id_het
+pal <- RColorBrewer::brewer.pal(6,"Spectral")
+orchard_plot(Q2m4.1, mod = "Gradient.category", xlab = "Standardised mean difference", transfm = "none", angle = 45, alpha = 0.7)+
+ scale_fill_manual(values = pal) + scale_colour_manual(values = pal) + 
+scale_y_discrete( labels= c("Environment:Intensity", "Pollution:Intensity",  "Resource:Intensity","Environment:Prevalence", "Pollution:Prevalence", "Resource:Prevalence")) +
+  xlim(-5,15.5)
 ```
+
 ### Question 3
-```{r dat_3-random_pred}
+We may want to consider changing the order in the y axis.
+```{r Q3-orchard, message=FALSE}
+Q3m7.1 <-
+  rma.mv(
+    g ~ Gradient.category:Trait.type -1,
+    V = var.g,
+    random = list( ~ 1 | ID, ~ 1 | Experiment),
+    data = dat_3,
+    method = "REML"
+  )
 
-# between experiment effects
-random <- ranef(Q3m4)
-random_exp <- data.frame(random$Experiment)
-random_exp$Experiment <- rownames(random_exp)
-
-for (i in 1:nrow(random_exp)){
-  random_exp$gr[i] <- dat_3$Gradient.category[dat_3$Experiment == random_exp$Experiment[i]][1]
-} 
-
-random_exp <- random_exp[order(random_exp$intrcpt),] 
-random_exp <- random_exp[order(random_exp$gr),] 
-
-pal <- wes_palette("IsleofDogs1", n = 3)
-Exp_het <-
-  ggplot(data = random_exp, aes(x = Experiment, colour = gr)) +
-  geom_errorbar(aes(ymin = pi.lb, ymax = pi.ub), size = 1.5) +
-  scale_x_discrete(limits = random_exp$Experiment) +
-  theme_light(base_size = 16) +
-  theme(
-    panel.grid.major.x = element_blank(),
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank()
-  ) +
-  scale_colour_manual(values = pal, name = "Stressor")  +
-  labs(y = "prediction interval")
-
-Exp_het
-
-# within experiment effects
-random_id <- data.frame(random$`Experiment/ID`)
-random_id$ID <- as.factor(dat_3$ID)
-
-for (i in 1:nrow(random_id)){
-  random_id$gr[i] <- dat_3$Gradient.category[i]
-} 
-
-random_id <- random_id[order(random_id$intrcpt),] 
-random_id <- random_id[order(random_id$gr),] 
-
-pal <- wes_palette("IsleofDogs1", n = 3)
-Id_het <-
-  ggplot(data = random_id, aes(x = ID, colour = gr)) +
-  geom_errorbar(aes(ymin = pi.lb, ymax = pi.ub), size = 1) +
-  scale_x_discrete(limits = random_id$ID) +
-  theme_light(base_size = 16) +
-  theme(
-    panel.grid.major.x = element_blank(),
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank()
-  ) +
-  scale_colour_manual(values = pal, name = "Stressor") +
-  labs(y = "prediction interval")
-
-Id_het
+pal <- colorRampPalette(brewer.pal(11,"Spectral"))(length(Q3m7.1$beta))
+orchard_plot(Q3m7.1, mod = "Gradient.category", xlab = "Standardised mean difference", transfm = "none", angle = 45, alpha = 0.7)+
+ scale_fill_manual(values = pal) + scale_colour_manual(values = pal) + 
+scale_y_discrete( labels= c("Environment:Fecundity", "Pollution:Fecundity",  "Resource:Fecundity","Environment:Intensity", "Pollution:Intensity",  "Resource:Intensity","Environment:Prevalence", "Pollution:Prevalence", "Resource:Prevalence","Environment:Survival", "Pollution:Survival", "Resource:Survival")) 
 ```
-
