@@ -16,7 +16,7 @@ Load packages
 ```{r load-packages, message=FALSE, results='hide'}
 x <-
   c(
-    "metafor", "kableExtra", "Matrix", "dplyr", "wesanderson", "weightr", "ggplot2", "MuMIn", "glmulti")
+    "metafor", "kableExtra", "Matrix", "dplyr", "wesanderson", "weightr", "ggplot2", "MuMIn", "RColorBrewer", "tidyverse", "patchwork", "devtools", "R.rsp")
 
 lapply(x, function(y) {
   # check if installed, if not install
@@ -27,7 +27,6 @@ lapply(x, function(y) {
   try(require(y, character.only = T), silent = T)
 })
 ```
-*Note* If you have trouble loading the glmulti package due to issues with Java, follow https://zhiyzuo.github.io/installation-rJava/ using the version Java17 (make sure to download the Arm 64 DMG Installer at https://www.oracle.com/java/technologies/downloads/#jdk17-mac)
 
 Read in data
 ```{r read-data}
@@ -330,7 +329,7 @@ Exps <- unique(dat$Experiment)
 dat_1 <- data.frame()
 
 # A data frame of experiments that included Infected demographic and Epidemiological effects
-dat_3 <- data.frame()
+dat_2 <- data.frame()
 
 # populate data sets with corresponding experiments
 for (i in Exps) {
@@ -341,16 +340,14 @@ for (i in Exps) {
   }
   if ("Epidemiological" %in% tmp$Trait.category &
       "Infected demographic" %in% tmp$Trait.category) {
-    dat_3 <- rbind(dat_3, tmp)
+    dat_2 <- rbind(dat_2, tmp)
   }
 }
 
 dat_1 <- dat_1[which(dat_1$Trait.category == "Uninfected demographic" | dat_1$Trait.category == "Infected demographic"),]
 
-dat_3 <- dat_3[which(dat_3$Trait.category == "Epidemiological" | dat_3$Trait.category == "Infected demographic"),]
+dat_2 <- dat_2[which(dat_2$Trait.category == "Epidemiological" | dat_2$Trait.category == "Infected demographic"),]
 
-# A data frame with experiments that include just epidemiological effects
-dat_2 <- dat_3[which(dat_3$Trait.category == "Epidemiological"),]
 ```
 
 ## Variance-covariance of sampling errors matrix (for multiple comparisons)
@@ -403,6 +400,8 @@ Neg_eigen_1 %>%
   kbl() %>%
   kable_material(c("striped", "hover"), full_width = F)
 ```
+
+
 For data set 2
 ```{r check-var-covar_2}
 studies_2 <- unique(dat_2$Study)
@@ -447,50 +446,6 @@ Neg_eigen_2 %>%
   kable_material(c("striped", "hover"), full_width = F)
 ```
 
-For data set 3
-```{r check-var-covar_3}
-studies_3 <- unique(dat_3$Study)
-studies_to_check <- c()
-negative_eigen <- c()
-
-for (k in studies_3) {
-  dat_study <- dat_3[which(dat_3$Study == k),]
-  varcovmat = matrix(0,
-                     nrow = dim(dat_study)[1],
-                     ncol = dim(dat_study)[1])
-  
-  for (i in 1:dim(dat_study)[1]) {
-    for (j in 1:dim(dat_study)[1]) {
-      if (i == j) {
-        varcovmat[i, j] = dat_study$var.g[i]
-      } else{
-        if (dat_study[i, "Experiment"] == dat_study[j, "Experiment"] &
-            dat_study[i, "Level_C"] == dat_study[j, "Level_C"] &
-            dat_study[i, "Trait"] == dat_study[j, "Trait"] &
-            dat_study[i, "Trait.category"] == dat_study[j, "Trait.category"]) {
-          varcovmat[i, j] = 1 / dat_study[i, "N_C"] + dat_study$g[i] * dat_study$g[j] /
-            (dat_study[i, "N_C"] + dat_study[i, "N_X"] + dat_study[j, "N_X"])
-        }
-      }
-    }
-  }
-  
-  val <- eigen(varcovmat)
-  for (m in 1:length(val$values)) {
-    if (val$values[m] < 0) {
-    studies_to_check <- append(studies_to_check, k)
-    negative_eigen <- append(negative_eigen, val$values[m])
-    }
-  }
-}
-    
-Neg_eigen_3 <- data.frame(study = studies_to_check, eigen = negative_eigen)
-
-Neg_eigen_3 %>%
-  kbl() %>%
-  kable_material(c("striped", "hover"), full_width = F)
-```
-
 Based on these eigenvalues, we looked back at the studies/experiments and determined if they had issues with reporting N or variance. We decided to remove two such studies for data set 1 (Ashraf et al. 2017 and Shostak et al. 2015) and one such study for data set 2 & 3 (Ashraf et al. 2017). 
 
 As we found no errors or causes of concern for other studies with barely negative eigenvalues, we are forcing the var-covar matrices to the nearest positive definite values, while keeping the diagonals (var) to the estimated values and modifying only the expected covariances.
@@ -518,8 +473,12 @@ for (i in 1:dim(dat_1)[1]) {
 # correct negative eigens in the few studies with large covar to var ratios
 varcovmat_1_PD <- nearPD(varcovmat_1,  keepDiag = TRUE)
 
+
 # exclude suspicious studies with highly negative eigenvalues
 dat_2 <- dat_2[-grep("Ashraf et al. 2017 Environ Sci Pollut Res", dat_2$Study),]
+
+# Carrington et al. 2013 has extremely large sampling variance for a parasite prevalence effect. DOUBLE CHECK!!!
+dat_2 <- dat_2[-grep("Carrington et al. 2013. PLOS NegTropDiseases", dat_2$Study),]
 
 varcovmat_2 = matrix(0, nrow = dim(dat_2)[1], ncol = dim(dat_2)[1])
 
@@ -531,52 +490,14 @@ for (i in 1:dim(dat_2)[1]) {
       }
     }
   }
-}
-
-# correct negative eigens in the few studies with large covar to var ratios
-varcovmat_2_PD <- nearPD(varcovmat_2,  keepDiag = TRUE)
-
-# exclude suspicious studies with highly negative eigenvalues
-dat_3 <- dat_3[-grep("Ashraf et al. 2017 Environ Sci Pollut Res", dat_3$Study),]
-
-# Carrington et al. 2013 has extremely large sampling variance for a parasite prevalence effect. DOUBLE CHECK!!!
-dat_3 <- dat_3[-grep("Carrington et al. 2013. PLOS NegTropDiseases", dat_3$Study),]
-
-varcovmat_3 = matrix(0, nrow = dim(dat_3)[1], ncol = dim(dat_3)[1])
-
-for (i in 1:dim(dat_3)[1]) {
-  for (j in 1:dim(dat_3)[1]) {
-    if (i == j) {varcovmat_3[i,j] = dat_3$var.g[i]}else{
-      if (dat_3[i, "Experiment"] == dat_3[j, "Experiment"] & dat_3[i, "Level_C"] == dat_3[j, "Level_C"] & dat_3[i, "Trait"] == dat_3[j, "Trait"] & dat_3[i, "Trait.category"] == dat_3[j, "Trait.category"]) {
-        varcovmat_3[i,j] = 1/dat_3[i,"N_C"] + dat_3$g[i]*dat_3$g[j]/(dat_3[i,"N_C"] + dat_3[i,"N_X"] + dat_3[j,"N_X"]) 
-      }
-    }
-  }
 }  
 
 # correct eigenvalues in the few studies with large covar to var ratios
-varcovmat_3_PD <- nearPD(varcovmat_3, keepDiag = TRUE)
+varcovmat_2_PD <- nearPD(varcovmat_2, keepDiag = TRUE)
 
-# For now remove rare host types to check interaction with host
-dat_3_byHost <- dat_3[which(dat_3$Host.type == "Arthropod" | dat_3$Host.type == "Mollusc" | dat_3$Host.type == "Fish" | dat_3$Host.type == "Amphibian"), ]
-
-varcovmat_3_byHost = matrix(0, nrow = dim(dat_3_byHost)[1], ncol = dim(dat_3_byHost)[1])
-
-for (i in 1:dim(dat_3_byHost)[1]) {
-  for (j in 1:dim(dat_3_byHost)[1]) {
-    if (i == j) {varcovmat_3_byHost[i,j] = dat_3_byHost$var.g[i]}else{
-      if (dat_3_byHost[i, "Experiment"] == dat_3_byHost[j, "Experiment"] & dat_3_byHost[i, "Level_C"] == dat_3_byHost[j, "Level_C"] & dat_3_byHost[i, "Trait"] == dat_3_byHost[j, "Trait"] & dat_3_byHost[i, "Trait.category"] == dat_3_byHost[j, "Trait.category"]) {
-        varcovmat_3_byHost[i,j] = 1/dat_3_byHost[i,"N_C"] + dat_3_byHost$g[i]*dat_3_byHost$g[j]/(dat_3_byHost[i,"N_C"] + dat_3_byHost[i,"N_X"] + dat_3_byHost[j,"N_X"]) 
-      }
-    }
-  }
-}
-
-# correct eigenvalues in the few studies with large covar to var ratios
-varcovmat_3_byHost_PD <- nearPD(varcovmat_3_byHost,  keepDiag = TRUE)
 ```
 
-Create a new column with a category of vertebrate or invertebrate
+Create a new column with a category of vertebrate or invertebrate (keeping this for now)
 ```{r vertebrate/invertebrate host category, echo=FALSE}
 dat_1 <- mutate(dat_1, Host.type.2 = case_when(
   Host.type == "Fish" ~ "Vertebrate",
@@ -584,7 +505,7 @@ dat_1 <- mutate(dat_1, Host.type.2 = case_when(
   Host.type == "Amphibian" ~ "Vertebrate",
   Host.type == "Mollusc" ~ "Invertebrate"))
 
-dat_2 <- mutate(dat_2, Host.type.2 = case_when(
+dat_2 <- mutate(dat_2, Host.type.2 = case_when( 
   Host.type == "Fish" ~ "Vertebrate",
   Host.type == "Arthropod" ~ "Invertebrate",
   Host.type == "Amphibian" ~ "Vertebrate",
@@ -593,14 +514,19 @@ dat_2 <- mutate(dat_2, Host.type.2 = case_when(
   Host.type == "Bird" ~ "Vertebrate",
   Host.type == "Mammal" ~ "Vertebrate"))
 
-dat_3 <- mutate(dat_3, Host.type.2 = case_when( 
-  Host.type == "Fish" ~ "Vertebrate",
-  Host.type == "Arthropod" ~ "Invertebrate",
-  Host.type == "Amphibian" ~ "Vertebrate",
-  Host.type == "Mollusc" ~ "Invertebrate",
-  Host.type == "Reptile" ~ "Vertebrate",
-  Host.type == "Bird" ~ "Vertebrate",
-  Host.type == "Mammal" ~ "Vertebrate"))
+```
+
+Create a new column collapsing pollution and environmental stress
+```{r pollution/environment stress category, echo=FALSE}
+dat_1 <- mutate(dat_1, Gradient.category.2 = case_when(
+  Gradient.category == "Pollution" ~ "Environment",
+  Gradient.category == "Environment" ~ "Environment",
+  Gradient.category == "Resource" ~ "Resource"))
+
+dat_2 <- mutate(dat_2, Gradient.category.2 = case_when( 
+  Gradient.category == "Pollution" ~ "Environment",
+  Gradient.category == "Environment" ~ "Environment",
+  Gradient.category == "Resource" ~ "Resource"))
 
 ```
 
@@ -707,42 +633,6 @@ d_stats <-
       length(dat_2$ID[grep("demographic", dat_2$Trait.category)]),
       length(dat_2$ID[which(dat_2$Trait.type == "Survivorship")]),
       length(dat_2$ID[which(dat_2$Trait.type == "Fecundity")])
-    ),
-    Question_3 = c(
-      length(unique(dat_3$Study)),
-      length(dat_3$g),
-      length(unique(dat_3$Experiment)),
-      length(unique(dat_3$Host[which(dat_3$Host.type == "Arthropod")])),
-      length(unique(dat_3$Host[which(dat_3$Host.type == "Mollusc")])),
-      length(unique(dat_3$Host[which(dat_3$Host.type == "Fish")])),
-      length(unique(dat_3$Host[which(dat_3$Host.type == "Amphibian")])),
-      length(unique(dat_3$Host[which(dat_3$Host.type == "Reptile")])),
-      length(unique(dat_3$Host[which(dat_3$Host.type == "Bird")])),
-      length(unique(dat_3$Host[which(dat_3$Host.type == "Mammal")])),
-      length(unique(dat_3$Parasite[which(dat_3$Parasite.type ==
-                                           "Virus")])),
-      length(unique(dat_3$Parasite[which(dat_3$Parasite.type ==
-                                           "Bacteria")])),
-      length(unique(dat_3$Parasite[which(dat_3$Parasite.type ==
-                                           "Multiple")])),
-      length(unique(dat_3$Parasite[which(dat_3$Parasite.type ==
-                                           "Fungus")])),
-      length(unique(dat_3$Parasite[which(dat_3$Parasite.type ==
-                                           "Protozoan")])),
-      length(unique(dat_3$Parasite[which(dat_3$Parasite.type ==
-                                           "Helminth")])),
-      length(dat_3$Experiment[which(dat_3$Gradient.category ==
-                                      "Environment")]),
-      length(dat_3$Experiment[which(dat_3$Gradient.category ==
-                                      "Pollution")]),
-      length(dat_3$Experiment[which(dat_3$Gradient.category ==
-                                      "Resource")]),
-      length(dat_3$ID[which(dat_3$Trait.category == "Epidemiological")]),
-      length(dat_3$ID[which(dat_3$Trait.type == "Prevalence")]),
-      length(dat_3$ID[which(dat_3$Trait.type == "Intensity")]),
-      length(dat_3$ID[grep("demographic", dat_3$Trait.category)]),
-      length(dat_3$ID[which(dat_3$Trait.type == "Survivorship")]),
-      length(dat_3$ID[which(dat_3$Trait.type == "Fecundity")])
     )
   )
 
@@ -752,148 +642,11 @@ d_stats %>%
 ```
 
 
-# Preliminary analysis
+# Analysis
 
-## Question 1 - Are fitness traits negatively affected by stressors
-### Null model
-```{r Q1-null}
-Q1m1 <-
-  rma.mv(
-    g ~ 1,
-    V = varcovmat_1_PD$mat,
-    random = list(  ~ 1 |Experiment/ID, ~ 1 | Parasite),
-    data = dat_1,
-    method = "REML"
-  )
-
-summary(Q1m1)
-```
-
-
-### Effects in uninfected vs infected hosts, do they differe between survival vs fecundity?
-```{r Q1-single-fixed}
-Q1m2 <-
-  rma.mv(
-    g ~ Trait.category:Trait.type -1,
-    V = varcovmat_1_PD$mat,
-    random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
-    data = dat_1,
-    method = "REML"
-  )
-
-summary(Q1m2)
-forest.default(x= Q1m2$beta, sei =  Q1m2$se, ci.lb =  Q1m2$ci.lb, ci.ub =  Q1m2$ci.ub, 
-                annotate=TRUE, showweights=T, header=F,
-                slab = c("Infected fecundity", "Uninfected fecundity", 
-                          "Infected survivorship", "Uninfected survivorship"))
-```
-
-### Effects in uninfected vs infected hosts, do they differe between survival vs fecundity, once we account for type of stress
-```{r Q1-single-fixed}
-Q1m3 <-
-  rma.mv(
-    g ~ Trait.category : Trait.type : Gradient.category -1,
-    V = varcovmat_1_PD$mat,
-    random = list( ~ 1 | Experiment/ID, ~ 1 | Parasite),
-    data = dat_1,
-    method = "REML"
-  )
-
-summary(Q1m3)
-forest.default(x= Q1m3$beta, sei =  Q1m3$se, ci.lb =  Q1m3$ci.lb, ci.ub =  Q1m3$ci.ub, 
-                annotate=TRUE, showweights=T, header=F,
-                slab = c("Environment infected fecundity", "Environment uninfected fecundity", "Environment infected survivorship", "Environment uninfected survivorship", "Pollution infected fecundity", "Pollution uninfected fecundity", "Pollution infected survivorship", "Pollution uninfected survivorship", "Resource infected fecundity", "Resource uninfected fecundity", "Resource infected survivorship", "Resource uninfected survivorship"))
-```
-
-### Effects in  survival vs fecundity measures of fitness under different types of stress, combining infected and uninfected
-```{r Q1-single-fixed}
-Q1m4 <-
-  rma.mv(
-    g ~ Trait.type:Gradient.category -1 ,
-    V = varcovmat_1_PD$mat,
-    random = list( ~ 1 | Experiment/ID, ~ 1 | Parasite),
-    data = dat_1,
-    method = "REML"
-  )
-
-summary(Q1m4)
-forest.default(x= Q1m4$beta, sei =  Q1m4$se, ci.lb =  Q1m4$ci.lb, ci.ub =  Q1m4$ci.ub, 
-                annotate=TRUE, showweights=T, header=F,
-                slab = c("Environment fecundity", "Environment survivorship", "Pollution  fecundity", "Pollution  survivorship", "Resource  fecundity", "Resource  survivorship"))
-```
-
-### Trait category x Host type interaction
-```{r Q1-Trait-x-Host}
-Q1m5 <-
-  rma.mv(
-    g ~ Trait.category:Host.type.2 -1,
-    V = varcovmat_1_PD$mat,
-    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_1,
-    method = "REML"
-  )
-
-summary(Q1m5)
-forest.default(x= Q1m5$beta, sei =  Q1m5$se, ci.lb =  Q1m5$ci.lb, ci.ub =  Q1m5$ci.ub, 
-                annotate=TRUE, showweights=T, header=F,
-                slab = c("Invertebrate infected", "Invertebrate uninfected", "Vertebrate infected", "Vertebrate  uninfected"))
-```
-
-### Trait category x Stress type x Host type interaction
-```{r Q1-Trait-x-Host}
-Q1m6 <-
-  rma.mv(
-    g ~ Trait.category:Gradient.category:Host.type.2 -1,
-    V = varcovmat_1_PD$mat,
-    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_1,
-    method = "REML"
-  )
-
-summary(Q1m6)
-forest.default(x= Q1m6$beta, sei =  Q1m6$se, ci.lb =  Q1m6$ci.lb, ci.ub =  Q1m6$ci.ub, 
-                annotate=TRUE, showweights=T, header=F,
-                slab = c("Environment invertebrate infected", "Environment invertebrate uninfected", "Pollution invertebrate infected", "Pollution invertebrate uninfected", "Resource invertebrate infected", "Resource invertebrate uninfected", "Environment vertebrate infected", "Environment vertebrate uninfected", "Pollution vertebrate infected", "Pollution vertebrate uninfected", "Resource vertebrate infected", "Resource vertebrate uninfected"))
-```
-
-### Trait type x Stress type x Host type interaction
-This model should not be included in the model selection, because it is missing categories (we don't have data of fecundity from vertebrates)
-```{r Q1-Trait-x-Host}
-Q1m7 <-
-  rma.mv(
-    g ~ Trait.type:Gradient.category:Host.type.2 -1,
-    V = varcovmat_1_PD$mat,
-    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_1,
-    method = "REML"
-  )
-
-summary(Q1m7)
-forest.default(x= Q1m7$beta, sei =  Q1m7$se, ci.lb =  Q1m7$ci.lb, ci.ub =  Q1m7$ci.ub, 
-                annotate=TRUE, showweights=T, header=F,
-                slab = c("Environment invertebrate fecundity", "Environment invertebrate survivorship", "Pollution invertebrate fecundity", "Pollution invertebrate survivorship", "Resource invertebrate fecundity", "Resource invertebrate survivorship", "Environment vertebrate survivorship", "Pollution vertebrate survivorship", "Resource vertebrate survivorship"))
-```
-
-### Stress type x Host type interaction, combining infected and uninfected
-```{r Q1-Trait-x-Host}
-Q1m8 <-
-  rma.mv(
-    g ~ Gradient.category:Host.type.2 -1,
-    V = varcovmat_1_PD$mat,
-    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_1,
-    method = "REML"
-  )
-
-summary(Q1m8)
-forest.default(x= Q1m8$beta, sei =  Q1m8$se, ci.lb =  Q1m8$ci.lb, ci.ub =  Q1m8$ci.ub, 
-                annotate=TRUE, showweights=T, header=F,
-                slab = c("Environment invertebrate", "Pollution invertebrate", "Resource invertebrate", "Environment vertebrate", "Pollution vertebrate", "Resource vertebrate "))
-```
-
+## Question 1 - Is there a differencial response to stressors between infected and uninfected host?
 ### Model selection
-#### Using MuMIn package
-```{r}
+```{r Model selection}
 # First, we evaluate some code that generates helper functions needed so that metafor and MuMIn could interact as necessary
 eval(metafor:::.MuMIn)
 
@@ -909,385 +662,103 @@ full_model.1 <- rma.mv(
 
 model_selection.1 <- dredge(full_model.1, trace = 2) 
 subset(model_selection.1, delta <= 10, recalc.weights = FALSE)
-# --> I am getting different weights (and therefore different unconditional estimates) than with the glmulti method
-
-# Multimodel inference
-average.model.1 <- model.avg(model_selection.1, revised.var=FALSE)
-summary(average.model.1) #Set revised.var = F to get same results as we would with the glmulti package
 
 # relative importance values for the predictors can be obtained with:
 importance(model_selection.1)
 
-# Best model Q1m4
 ```
 
-## Question 2 - Are resistance traits negatively affected by stressors
-### Null model
-```{r Q2-null}
-Q2m1 <-
+### Best Model: Effects in  survival vs fecundity under different types of stress, combining infected and uninfected
+```{r}
+Q1 <-
   rma.mv(
-    g ~ 1,
-    V = varcovmat_2_PD$mat,
-    random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
-    data = dat_2,
+    g ~ Trait.type:Gradient.category -1 ,
+    V = varcovmat_1_PD$mat,
+    random = list( ~ 1 | Experiment/ID, ~ 1 | Parasite),
+    data = dat_1,
     method = "REML"
   )
 
-summary(Q2m1)
-```
-
-### Does resistance decrease with stress, does it differe between prevalence vs intensity?
-```{r Q2-single-fixed}
-Q2m2 <-
-  rma.mv(
-    g ~ Trait.type -1 ,
-    V = varcovmat_2_PD$mat,
-    random = list( ~ 1 | as.factor(ID), ~ 1 | as.factor(Experiment), ~ 1 | Parasite),
-    data = dat_2,
-    method = "REML"
-  )
-
-summary(Q2m2)
-forest.default(x= Q2m2$beta, sei =  Q2m2$se, ci.lb =  Q2m2$ci.lb, ci.ub =  Q2m2$ci.ub, 
+summary(Q1)
+forest.default(x= Q1$beta, sei =  Q1$se, ci.lb =  Q1$ci.lb, ci.ub =  Q1$ci.ub, 
                 annotate=TRUE, showweights=T, header=F,
-                slab = c("Intensity", "Prevalence"))
+                slab = c("Environment fecundity", "Environment survivorship", "Pollution  fecundity", "Pollution  survivorship", "Resource  fecundity", "Resource  survivorship"))
 ```
 
-### Do they differe between prevalence vs intensity, once we account for type of stress
-```{r Q2-single-fixed}
-Q2m3 <-
-  rma.mv(
-    g ~ Trait.type : Gradient.category -1,
-    V = varcovmat_2_PD$mat,
-    random = list( ~ 1 |Experiment/ID, ~ 1 | Parasite),
-    data = dat_2,
-    method = "REML"
-  )
-
-summary(Q2m3)
-forest.default(x= Q2m3$beta, sei =  Q2m3$se, ci.lb =  Q2m3$ci.lb, ci.ub =  Q2m3$ci.ub, 
-                annotate=TRUE, showweights=T, header=F,
-                slab = c("Environment intensity", "Environment prevalence", "Pollution intensity", "Pollution prevalence", "Resource intensity", "Resource prevalence"))
-```
-
-
-### Trait type x Host type interaction
-```{r Q2-Trait-x-Host}
-Q2m4 <-
-  rma.mv(
-    g ~ Trait.type:Host.type.2:Gradient.category -1,
-    V = varcovmat_2_PD$mat,
-    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_2,
-    method = "REML"
-  )
-
-summary(Q2m4)
-forest.default(x= Q2m4$beta, sei =  Q2m4$se, ci.lb =  Q2m4$ci.lb, ci.ub =  Q2m4$ci.ub, 
-                annotate=TRUE, showweights=T, header=F,
-                slab = c("Environment invertebrate intensity", "Environment invertebrate prevalence", "Environment vertebrate intensity", "Environment vertebrate prevalence", "Pollution invertebrate intensity", "Pollution invertebrate prevalence", "Pollution vertebrate intensity", "Pollution vertebrate prevalence", "Resource invertebrate intensity", "Resource invertebrate prevalence", "Resource vertebrate intensity", "Resource vertebrate prevalence"))
-```
-### Does the response depends on stress type 
-```{r Q2-Stress-Type}
-Q2m5 <-
-  rma.mv(
-    g ~ Gradient.category -1,
-    V = varcovmat_2_PD$mat,
-    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_2,
-    method = "REML"
-  )
-
-summary(Q2m5)
-forest.default(x= Q2m5$beta, sei =  Q2m5$se, ci.lb =  Q2m5$ci.lb, ci.ub =  Q2m5$ci.ub, 
-                annotate=TRUE, showweights=T, header=F,
-                slab = c("Environment", "Pollution", "Resource"))
-```
+## Question 2 - Do resistance and fitness traits have different sensitivity to stressors?
 ### Model selection
-This section is a work in progress...
-
-#### Using glmulti package
+#### All stressors
 ```{r}
-# Define a function that takes a model formula and a dataset as input and then fits a random/mixed-effects meta-regression model to the given data using maximum likelihood estimation (to compare models we have to use ML, and then we can re-fit with REML)
-rma.glmulti <- function(formula, data, V, random, ...){
-   rma.mv(formula, V = V, data = data, random = random, method="ML", ...) 
-}
-
-# Fit all models
-all.models.2 <- glmulti(g ~ Trait.type*Gradient.category, 
-               data=dat_2,
-               V = varcovmat_2_PD$mat, 
-               random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
-               level = 2, fitfunction = rma.glmulti, crit="aicc", marginality = TRUE)
-
-# --> Tried "intercept = F", to exclude the intercept from  the candidate models, and got "Error in x[, ii] : subscript out of bounds"
-
-# summary
-print(all.models.2)
-
-# plot of AICc values for the models. The line separates the models that are less or more that 2 units away from the best model
-plot(all.models.2)
-
-# Top models
-top.models.2 <- weightable(all.models.2)
-top.models.2 <- top.models.2[top.models.2$aicc <= min(top.models.2$aicc) + 2,]
-top.models.2
-
-# Variable importance plot across all the models
-plot(all.models.2, type="s")
-# --> none of them reach >= 0.8
-
-#Multimodel inference - make inferences about various predictors across all possible models relative to their weights
-
-#To get the glmulti package to handle rma.uni objects, we must register a getfit method for such objects
-eval(metafor:::.glmulti)
-
-coef(all.models.2)
-
-# Organized table, getting the unconditional estimates
-mmi.2 <- as.data.frame(coef(all.models.2))
-mmi.2 <- data.frame(Estimate=mmi.2$Est, SE=sqrt(mmi.2$Uncond), Importance=mmi.2$Importance, row.names=row.names(mmi.2))
-mmi.2$z <- mmi.2$Estimate / mmi.2$SE
-mmi.2$p <- 2*pnorm(abs(mmi.2$z), lower.tail=FALSE)
-names(mmi.2) <- c("Estimate", "Std. Error", "Importance", "z value", "Pr(>|z|)")
-mmi.2$ci.lb <- mmi.2[[1]] - qnorm(.975) * mmi.2[[2]]
-mmi.2$ci.ub <- mmi.2[[1]] + qnorm(.975) * mmi.2[[2]]
-mmi.2 <- mmi.2[order(mmi.2$Importance, decreasing=TRUE), c(1,2,4:7,3)]
-round(mmi.2, 4)
-
-#Multimodel predictions
-# --> Note: how (and when) can we re-fit the model with REML?
-#           how do we deal with interactions?
-
-# x <- data.frame("Gradient.category" = c("Environment", "Pollution", "Resource", "Environment", "Pollution", "Resource"), "Trait.type" = c("Intensity", "Intensity", "Intensity", "Prevalence", "Prevalence", "Prevalence"))
-# predict.glmulti(res, varweighting = "Buckland", newdata = x, icmethod = "Lukacs", se.fit = TRUE)
-
-preds <- list()
-
-x <- c("Gradient.categoryPollution" = T, "Gradient.categoryResource" = F, "Trait.typePrevalence" = T, "Gradient.categoryEnvironment:Trait.typeIntensity" = F, "Gradient.categoryPollution:Trait.typeIntensity" = F, 
-"Gradient.categoryResource:Trait.typeIntensity" = F, "Gradient.categoryEnvironment:Trait.typePrevalence" = F,
-"Gradient.categoryPollution:Trait.typePrevalence" = F, 
-"Gradient.categoryResource:Trait.typePrevalence" = F,
-"Trait.typePrevalence:Gradient.categoryResource" = F, 
-"Trait.typePrevalence:Gradient.categoryPollution" = F,
-"Trait.typePrevalence:Gradient.categoryEnvironment" = F,
-"Trait.typeIntensity:Gradient.categoryResource" = F,
-"Trait.typeIntensity:Gradient.categoryPollution" = F,
-"Trait.typeIntensity:Gradient.categoryEnvironment" = F)
-
-#Missing Gradient.categoryEnvironment and Trait.typeIntensity
- 
-for (j in 1:all.models.2@nbmods) {
-   model <- all.models.2@objects[[j]]
-   vars <- names(coef(model))[-1]
-   if (length(vars) == 0) {
-      preds[[j]] <- predict(model)
-   } else {
-      preds[[j]] <- predict(model, newmods=x[vars])
-   }
-}
-
-weights <- weightable(all.models.2)$weights
-yhat <- sum(weights * sapply(preds, function(x) x$pred))
-round(yhat, 3)
-se <- sqrt(sum(weights * sapply(preds, function(x) x$se^2 + (x$pred - yhat)^2)))
-round(yhat + c(-1,1)*qnorm(.975)*se, 3)
-
-```
-
-#### Using MuMIn package
-```{r}
-# Now, we take the full model and fit the rest of the models and examine those models whose AICc value is no more than 10 units away from that of the best model
 full_model.2 <- rma.mv(
     g,
     V = varcovmat_2_PD$mat,
-    mods = ~ Trait.type * Gradient.category, 
+    mods = ~ Trait.type*Gradient.category, 
     random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
     data = dat_2,
     method = "ML"
   )
-
+# Define if using Trait.type or Trait.category
 model_selection.2 <- dredge(full_model.2, trace = 2) 
 subset(model_selection.2, delta <= 10, recalc.weights = FALSE)
-# --> I am getting different weights (and therefore different unconditional estimates) than with the glmulti method
-
-# Multimodel inference
-average.model.2 <- model.avg(model_selection.2, revised.var=FALSE)
-summary(average.model.2) #Set revised.var = F to get same results as we would with the glmulti package
 
 # relative importance values for the predictors can be obtained with:
 importance(model_selection.2)
-
-#How do we get model predictions? - Still not working
-predict(average.model.2, se.fit = T)
-predict(average.model.2, newdata = data.frame(c("Gradient.categoryPollution" = T, "Gradient.categoryResource" = F, "Trait.typePrevalence" = T, "Gradient.categoryPollution:Trait.typePrevalence" = F, 
-"Gradient.categoryResource:Trait.typePrevalence" = F)), se.fit = T)
 ```
-
-
-## Question 3 - Do resistance and fitness traits have different sensitivity to stressors
-### Null model
-```{r Q3-null}
-Q3m1 <-
-  rma.mv(
-    g ~ 1,
-    V = varcovmat_3_PD$mat,
+#### Merge Pollution and Environmental stressors 
+```{r}
+full_model.2.merged <- rma.mv(
+    g,
+    V = varcovmat_2_PD$mat,
+    mods = ~ Trait.type*Gradient.category.2, 
     random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_3,
-    method = "REML"
+    data = dat_2,
+    method = "ML"
   )
+# Define if using Trait.type or Trait.category
+model_selection.2.merged <- dredge(full_model.2.merged, trace = 2) 
+subset(model_selection.2.merged, delta <= 10, recalc.weights = FALSE)
 
-summary(Q3m1)
+# relative importance values for the predictors can be obtained with:
+importance(model_selection.2.merged)
 
 ```
 
-### Single fixed effect
-```{r Q3-single-fixed}
-#note that this is WITH absolute value --> which one is more sensible. Both are significant.
-Q3m2.1 <-
-  rma.mv(
-   abs(g) ~ Trait.category -1,
-    V = varcovmat_3_PD$mat,
+#### Resistance versus fitness traits 
+```{r}
+full_model.2.rvf <- rma.mv(
+    g,
+    V = varcovmat_2_PD$mat,
+    mods = ~ Trait.category*Gradient.category, 
     random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_3,
-    method = "REML"
+    data = dat_2,
+    method = "ML"
   )
+# Define if using Trait.type or Trait.category
+model_selection.2.rvf <- dredge(full_model.2.rvf, trace = 2) 
+subset(model_selection.2.rvf, delta <= 10, recalc.weights = FALSE)
 
-summary(Q3m2.1)
-forest.default(x= Q3m2.1$beta, sei =  Q3m2.1$se, ci.lb =  Q3m2.1$ci.lb, ci.ub =  Q3m2.1$ci.ub, 
-                annotate=TRUE, showweights=T, header=F,
-                slab = c("epidemiological", "Fitness"))
-```
-```{r Q3-single-fixed}
-#note that this is WITHOUT absolute value --> In here, resistance is not significant. Which means that the responses to stress are all over the place, while for the fitness trait is always a negative effect. Could be explained by dying individuals when getting infected, which might look like an increase in resistance (??)
+# relative importance values for the predictors can be obtained with:
+importance(model_selection.2.rvf)
 
-Q3m2.2 <-
-  rma.mv(
-   g ~ Trait.category -1,
-    V = varcovmat_3_PD$mat,
-    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_3,
-    method = "REML"
-  )
-
-summary(Q3m2.2)
-forest.default(x= Q3m2.2$beta, sei =  Q3m2.2$se, ci.lb =  Q3m2.2$ci.lb, ci.ub =  Q3m2.2$ci.ub, 
-                annotate=TRUE, showweights=T, header=F,
-                slab = c("Epidemiological", "Fitness"))
 ```
 
-### Trait category x Gradient category interaction
-```{r Q3-Trait-x-Gradient}
-Q3m3 <-
-  rma.mv(
-    g ~ Trait.category:Gradient.category -1,
-    V = varcovmat_3_PD$mat,
-    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_3,
-    method = "REML"
-  )
-
-summary(Q3m3)
-forest.default(x= Q3m3$beta, sei =  Q3m3$se, ci.lb =  Q3m3$ci.lb, ci.ub =  Q3m3$ci.ub, 
-                annotate=TRUE, showweights=T, header=F,
-                slab = c("Environment epidemiological", "Environment fitness", "Pollution epidemiological", "Pollution fitness", "Resource epidemiological", "Resource fitness"))
-```
-
-### Trait type x Gradient category interaction
-```{r Q3-Trait-x-Gradient}
-Q3m4 <-
+### Best model: Trait type x Gradient category interaction (lowest AICc)
+```{r}
+Q2 <-
   rma.mv(
     g ~ Trait.type:Gradient.category -1,
-    V = varcovmat_3_PD$mat,
+    V = varcovmat_2_PD$mat,
     random = list( ~ 1 | Experiment/ID, ~ 1 | Parasite),
-    data = dat_3,
+    data = dat_2,
     method = "REML",
 )
 
-summary(Q3m4)
-forest.default(x= Q3m4$beta, sei =  Q3m4$se, ci.lb =  Q3m4$ci.lb, ci.ub =  Q3m4$ci.ub, 
+summary(Q2)
+forest.default(x= Q2$beta, sei =  Q2$se, ci.lb =  Q2$ci.lb, ci.ub =  Q2$ci.ub, 
                 annotate=TRUE, showweights=T, header=F,
                 slab = c("Environment fecundity", "Environment intensity", "Environment prevalence", "Environment survivorship", "Pollution fecundity", "Pollution intensity", "Pollution prevalence", "Pollution survivorship", "Resource fecundity", "Resource intensity", "Resource prevalence", "Resource survivorship"))
 ```
 
-### Trait category x Host type interaction
-```{r Q3-Trait-x-Host}
-Q3m5 <-
-  rma.mv(
-    g ~ Trait.category:Host.type.2 -1,
-    V = varcovmat_3_PD$mat,
-    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_3,
-    method = "REML",
-)
-
-summary(Q3m5)
-forest.default(x= Q3m5$beta, sei =  Q3m5$se, ci.lb =  Q3m5$ci.lb, ci.ub =  Q3m5$ci.ub, 
-                annotate=TRUE, showweights=T, header=F,
-                slab = c("Resistance invertebrate", "Fitness invertebrate", "Resistance vertebrate", "Fitness vertebrate"))
-```
-
-### Trait category x Invert/Vert x Stressor type
-```{r Q3-Trait-x-Host}
-Q3m6 <-
-  rma.mv(
-    g ~ Trait.category:Host.type.2:Gradient.category -1,
-    V = varcovmat_3_PD$mat,
-    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_3,
-    method = "REML",
-)
-
-summary(Q3m6)
-forest.default(x= Q3m6$beta, sei =  Q3m6$se, ci.lb =  Q3m6$ci.lb, ci.ub =  Q3m6$ci.ub, 
-                annotate=TRUE, showweights=T, header=F,
-                slab = c("Environment invertebrate epidemiological", "Environment invertebrate fitness", "Environment vertebrate epidemiological", "Environment vertebrate fitness", "Pollution invertebrate epidemiological", "Pollution invertebrate fitness", "Pollution vertebrate epidemiological", "Pollution vertebrate fitness", "Resource invertebrate epidemiological", "Resource invertebrate fitness", "Resource vertebrate epidemiological", "Resource vertebrate fitness"))
-
-```
-
-### Trait type x Invert/Vert x stressor type
-```{r Q3-Trait-x-Host}
-Q3m7 <-
-  rma.mv(
-    g ~ Trait.type:Host.type.2:Gradient.category -1,
-    V = varcovmat_3_PD$mat,
-    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_3,
-    method = "REML",
-)
-
-summary(Q3m7)
-forest.default(x= Q3m7$beta, sei =  Q3m7$se, ci.lb =  Q3m7$ci.lb, ci.ub =  Q3m7$ci.ub, 
-                annotate=TRUE, showweights=T, header=F,
-                slab = c("Environment invertebrate fecundity", "Environment invertebrate intensity", "Environment invertebrate prevalence", "Environment invertebrate survivorship", "Environment vertebrate intensity", "Environment vertebrate prevalence", "Environment vertebrate survivorship", "Pollution invertebrate fecundity", "Pollution invertebrate intensity", "Pollution invertebrate prevalence", "Pollution invertebrate survivorship", "Pollution vertebrate intensity", "Pollution vertebrate prevalence", "Pollution vertebrate survivorship", "Resource invertebrate fecundity", "Resource invertebrate intensity", "Resource invertebrate prevalence", "Resource invertebrate survivorship", "Resource vertebrate intensity", "Resource vertebrate prevalence", "Resource vertebrate survivorship"))
-
-```
-
-### Model selection
-#### Using MuMIn package
-```{r}
-full_model.3 <- rma.mv(
-    g,
-    V = varcovmat_3_PD$mat,
-    mods = ~ Trait.type*Gradient.category, 
-    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
-    data = dat_3,
-    method = "ML"
-  )
-# Define if using Trait.type or Trait.category
-model_selection.3 <- dredge(full_model.3, trace = 2) 
-subset(model_selection.3, delta <= 10, recalc.weights = FALSE)
-# --> I am getting different weights (and therefore different unconditional estimates) than with the glmulti method
-
-# Multimodel inference
-average.model.3 <- model.avg(model_selection.3, revised.var=FALSE)
-summary(average.model.3) #Set revised.var = F to get same results as we would with the glmulti package
-
-# relative importance values for the predictors can be obtained with:
-importance(model_selection.3)
-
-#Best model Q3m4
-```
 
 # Publication bias
 
@@ -1301,20 +772,19 @@ Estimation of conditional residuals is not available to rma.mv objects (which ca
 **Note** I checked some previous studies that use multilevel regression models as we do here, to see what they do about publication bias. Sauer et al 2020 Ecology (101) acknowledged this problem and decided not to even show funnel plots: "Because of the complex non independence among effect sizes within a study (e.g., some studies had multiple effect sizes), we did not use funnel plots or rank correlation tests to assess publication bias (Lau et al. 2006, Civitello et al.2015)." Others (Yates et al. 2019 Environmental DNA (1); Salerno et al 2021 Global Change Biology (27); Brlik et al. 2020 JAE) acknowledge this problem, but still show funnel plots warning caution. They also conduct a version of Eggerts test somewhat in the same spirit as I do below.
 
 #### Data set 1: fitness effects of environmental stress
-For now, I'm using the best model for Question 1:Q1m7
 ```{r dat_1-funnel}
 # re fit as a mixed effects model with rma.uni
 # any fitting method other than "FE" works for a random/mixed effects model
-Q1m7.uni <-
+Q1.uni <-
   rma.uni(
-    g ~ Trait.type:Gradient.category:Host.type.2 + Experiment + ID ,
+    g ~ Trait.type:Gradient.category + Experiment + ID ,
     vi = dat_1$var.g,
     data = dat_1,
     method = "REML"
   )
 
 # get conditional residuals (residuals for each effect)
-Q1res <- rstandard.rma.uni(Q1m7.uni, type = "conditional")
+Q1res <- rstandard.rma.uni(Q1.uni, type = "conditional")
 
 # create colour palette as  gradient of effect size g
 nlvl <- length(dat_1$g)
@@ -1327,21 +797,20 @@ metafor::funnel(Q1res$resid, sqrt(dat_1$var.g), level=c(90, 95, 99), shade=c("wh
 
 We can see that as SE increases (e.g ~ 1) all studies report large negative fitness effects of environmental stress (large negative residuals). In other words, it seems that very small studies tend to find that environmental stress is more negative to fitness!
 
-#### Data set 2: resistance effects of environmental stress
-For now, I'm using the best model for Question 2: Q2m4
+#### Data set 2: resistance and fitness effects of environmental stress
 ```{r dat_2-funnel}
 # re fit as a mixed effects model with rma.uni
 # any fitting method other than "FE" works for a random/mixed effects model
-Q2m4.uni <-
+Q2.uni <-
   rma.uni(
-    g ~ Trait.type:Gradient.category:Host.type.2 + Experiment + ID ,
+    g ~ Trait.type:Gradient.category + Experiment + ID,
     vi = dat_2$var.g,
     data = dat_2,
     method = "REML"
   )
 
 # get conditional residuals (residuals for each effect)
-Q2res <- rstandard.rma.uni(Q2m4.uni, type = "conditional")
+Q2res <- rstandard.rma.uni(Q2.uni, type = "conditional")
 
 # create colour palette as  gradient of effect size g
 nlvl <- length(dat_2$g)
@@ -1351,50 +820,12 @@ pal <-pal[order(match(pal,dat_2$g))]
 # plot funnel with all conditional residuals
 metafor::funnel(Q2res$resid, sqrt(dat_2$var.g), level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal, back = "white", refline=0, legend=TRUE, xlab = "Conditional residual", ylab = "Standard error")
 ```
-
-There is an outlier effect with extremely low precision. Amanda may want to double check this point. To be able to visualize the bulk of the data I plot the rest of the effects below.
-
-```{r dat_2-funnel-no-outlier}
-out <- grep(x = dat_2$var.g, pattern = max(dat_2$var.g))
-
-pal <- pal[-out]
-
-metafor::funnel(Q2res$resid[-out], sqrt(dat_2$var.g[-out]), level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal, back = "white", refline=0, legend=TRUE, xlab = "Conditional residual", ylab = "Standard error")
-```
-
-Again, it seems that studies with low precision (sei > 1) tend to have disproportionally large effects. In this case, publication bias would result in over estimation of infection intensity under stressful conditions. 
-
-#### Data set 3: resistance and fitness effects of environmental stress
-```{r dat_3-funnel}
-# re fit as a mixed effects model with rma.uni
-# any fitting method other than "FE" works for a random/mixed effects model
-Q3m7.uni <-
-  rma.uni(
-    g ~ Trait.type:Gradient.category:Host.type.2 + Experiment + ID,
-    vi = dat_3$var.g,
-    data = dat_3,
-    method = "REML"
-  )
-
-# get conditional residuals (residuals for each effect)
-Q3res <- rstandard.rma.uni(Q3m7.uni, type = "conditional")
-
-# create colour palette as  gradient of effect size g
-nlvl <- length(dat_3$g)
-pal <- colorRampPalette(brewer.pal(9, "YlOrRd"))(nlvl)
-pal <-pal[order(match(pal,dat_3$g))]
-
-# plot funnel with all conditional residuals
-metafor::funnel(Q3res$resid, sqrt(dat_3$var.g), level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal, back = "white", refline=0, legend=TRUE, xlab = "Conditional residual", ylab = "Standard error")
-```
-Because this data set includes both the fitness and resistance effects it's not surprising that small studies are distributed on both sides of the funnel. This does not mean absence of publication bias as negative effects for fitness and positive effects for (-) resistance both would suggest that small studies tend to inflate the negative consequences of environmental stress. For the publication, I suggest we use -g for resistance effects (currently g = infection intensity or prevalence) and/or we use funnel plots for only datasets 1 and 2.
+Because this data set includes both the fitness and resistance effects it's not surprising that small studies are distributed on both sides of the funnel. This does not mean absence of publication bias as negative effects for fitness and positive effects for (-) resistance both would suggest that small studies tend to inflate the negative consequences of environmental stress. For the publication, I suggest we use -g for resistance effects (currently g = infection intensity or prevalence) and/or we use funnel plots for only dataset 1.
 
 ### Two step approach to test for publication bias
 Following Nakagawa et al. (2021) we conduct a two-step approach to test for publication bias, that can be thought of as a modified Egger's test for multilevel meta analysis. First we include the effect sizes' standard error as the only moderator and including the same random effect structure as in our meta-analysis. If the slope of this moderator is significant, the estimated intercept provides a downwardly biased estimate of the overall meta-analytic effect (Doucouliagos 2012, 2014). In this case, we run a second meta regression with only the effect sizes' variances as moderators. The intercept in this case may still be biased, but less so.
 
 #### Data set 1: fitness effects of environmental stress
-For now, I'm using the best model for Question 1:Q1m7
-
 ```{r dat_1-twostep-1}
 # get standard errors of effect sizes 
 dat_1$sei <- sqrt(dat_1$var.g)
@@ -1437,44 +868,41 @@ Again, precision effects are similar and significant, suggesting publication bia
 
 Including the variance-covariance error matrix within studies
 ```{r dat_1-PB-adjusted}
-Q1m7.B <-
+Q1.B <-
   rma.mv(
-    g ~ Trait.type:Gradient.category:Host.type.2 + var.g -1,
+    g ~ Trait.type:Gradient.category + var.g -1,
     V = varcovmat_1_PD$mat,
     random = list( ~ 1 | ID, ~ 1 | Experiment),
     data = dat_1,
     method = "REML"
   )
 
-summary(Q1m7.B)
+summary(Q1.B)
 
-forest.default(x= Q1m7.B$beta, sei =  Q1m7.B$se, ci.lb = Q1m7.B$ci.lb, ci.ub = Q1m7.B$ci.ub, 
+forest.default(x= Q1.B$beta, sei =  Q1.B$se, ci.lb = Q1.B$ci.lb, ci.ub = Q1.B$ci.ub, 
                 annotate=TRUE, showweights=T, header=F, 
-                slab = c("variance","Environment invertebrate fecundity", "Environment invertebrate survivorship", "Pollution invertebrate fecundity", "Pollution invertebrate survivorship", "Resource invertebrate fecundity", "Resource invertebrate survivorship", "Environment vertebrate survivorship", "Pollution vertebrate survivorship", "Resource vertebrate survivorship"))
+                slab = c("variance","Environment fecundity", "Environment survivorship", "Pollution fecundity", "Pollution survivorship", "Resource fecundity", "Resource survivorship"))
 ```
 
 Using the robust variance estimator instead of the variance-covariance error matrix within studies
 ```{r dat_1-PB-adjusted-RVE}
-Q1m7.B.R <-
+Q1.B.R <-
   rma.mv(
-    g ~ Trait.type:Gradient.category:Host.type.2 + var.g -1,
+    g ~ Trait.type:Gradient.category + var.g -1,
     V = var.g,
     random = list( ~ 1 | ID, ~ 1 | Experiment),
     data = dat_1,
     method = "REML"
   )
 
-Q1m7.B.R_est <- clubSandwich::coef_test(Q1m7.B.R, vcov = "CR2")
+Q1.B.R_est <- clubSandwich::coef_test(Q1.B.R, vcov = "CR2")
 
-forest.default(x= Q1m7.B.R_est$beta, sei =  Q1m7.B.R_est$SE, ci.lb = (Q1m7.B.R_est$beta - 1.96 * Q1m7.B.R_est$SE) , ci.ub =(Q1m7.B.R_est$beta + 1.96 * Q1m7.B.R_est$SE), 
+forest.default(x= Q1.B.R_est$beta, sei =  Q1.B.R_est$SE, ci.lb = (Q1.B.R_est$beta - 1.96 * Q1.B.R_est$SE) , ci.ub =(Q1.B.R_est$beta + 1.96 * Q1.B.R_est$SE), 
                 annotate=TRUE, showweights=T, header=F, 
-                slab = c("variance","Environment invertebrate fecundity", "Environment invertebrate survivorship", "Pollution invertebrate fecundity", "Pollution invertebrate survivorship", "Resource invertebrate fecundity", "Resource invertebrate survivorship", "Environment vertebrate survivorship", "Pollution vertebrate survivorship", "Resource vertebrate survivorship"))
+                slab = c("variance","Environment fecundity", "Environment survivorship", "Pollution fecundity", "Pollution survivorship", "Resource fecundity", "Resource survivorship"))
 ```
 
-#### Data set 2: resistance effects of environmental stress
-
-For now, I'm using the best model for Question 2: Q2m4
-
+#### Data set 2: resistance and fitness effects of environmental stress
 ```{r dat_2-twostep-1}
 # get standard errors of effect sizes 
 dat_2$sei <- sqrt(dat_2$var.g)
@@ -1487,98 +915,53 @@ rma.mv(g ~ 1 + sei,
     method = "REML")
 ```
 
-Without var-covar matrix?
-```{r dat_2-twostep-1-RVE}
-# meta regression with SE
-rma.mv(g ~ 1 + sei,
-    V = var.g,
-    random = list( ~ 1 | Experiment, ~ 1 | ID),
-    data = dat_2,
-    method = "REML")
-```
-
-Here there is no evidence of small study effects so we don't need to model sampling variance.
-
-Here I include the final model under the robust variance estimator.
-```{r dat_2-final-RVE}
-Q2m4.R  <-
-  rma.mv(
-    g ~ Trait.type:Host.type.2:Gradient.category -1,
-    V = var.g,
-    random = list( ~ 1 | ID, ~ 1 | Experiment),
-    data = dat_2,
-    method = "REML"
-  )
-
-# here we need to remove Resource vertebrate prevalence as there are not enough studies to estimate this effect robustly
-Q2m4.R_est <- clubSandwich::coef_test(Q2m4.R, vcov = "CR2")[-12,]
-
-forest.default(x= Q2m4.R_est$beta, sei =  Q2m4.R_est$SE, ci.lb = (Q2m4.R_est$beta - 1.96 * Q2m4.R_est$SE) , ci.ub =(Q2m4.R_est$beta + 1.96 * Q2m4.R_est$SE), 
-                annotate=TRUE, showweights=T, header=F, 
-                slab = c("Environment invertebrate intensity", "Environment invertebrate prevalence", "Environment vertebrate intensity", "Environment vertebrate prevalence", "Pollution invertebrate intensity", "Pollution invertebrate prevalence", "Pollution vertebrate intensity", "Pollution vertebrate prevalence", "Resource invertebrate intensity", "Resource invertebrate prevalence", "Resource vertebrate intensity"))
-```
-
-#### Data set 3: resistance and fitness effects of environmental stress
-For now, I'm using the best model for Question 3: Q3m7
-```{r dat_3-twostep-1}
-# get standard errors of effect sizes 
-dat_3$sei <- sqrt(dat_3$var.g)
-
-# meta regression with SE
-rma.mv(g ~ 1 + sei,
-    V = varcovmat_3_PD$mat,
-    random = list( ~ 1 | Experiment, ~ 1 | ID),
-    data = dat_3,
-    method = "REML")
-```
-
 Without the var-covar matrix
-```{r dat_3-twostep-1-RVE}
+```{r dat_2-twostep-1-RVE}
 
 # meta regression with SE
 rma.mv(g ~ 1 + sei,
     V = var.g,
     random = list( ~ 1 | Experiment, ~ 1 | ID),
-    data = dat_3,
+    data = dat_2,
     method = "REML")
 ```
 
 As in data set 1, effects of small studies are dominated by negative effect sizes. Because the slope of sei is significant the variance is a better moderator for the overall effect.
 
 Including the variance-covariance error matrix within studies
-```{r dat_3-PB-adjusted}
-Q3m7.B <-
+```{r dat_2-PB-adjusted}
+Q2.B <-
   rma.mv(
-    g ~ Trait.type:Gradient.category:Host.type.2 + var.g -1,
-    V = varcovmat_3_PD$mat,
+    g ~ Trait.type:Gradient.category + var.g -1,
+    V = varcovmat_2_PD$mat,
     random = list( ~ 1 | ID, ~ 1 | Experiment),
-    data = dat_3,
+    data = dat_2,
     method = "REML"
   )
 
-summary(Q3m7.B)
+summary(Q2.B)
 
-forest.default(x= Q3m7.B$beta, sei =  Q3m7.B$se, ci.lb = Q3m7.B$ci.lb, ci.ub = Q3m7.B$ci.ub, 
+forest.default(x= Q2.B$beta, sei =  Q2.B$se, ci.lb = Q2.B$ci.lb, ci.ub = Q2.B$ci.ub, 
                 annotate=TRUE, showweights=T, header=F, 
-                slab = c("variance", "Environment invertebrate fecundity", "Environment invertebrate intensity", "Environment invertebrate prevalence", "Environment invertebrate survivorship", "Environment vertebrate intensity", "Environment vertebrate prevalence", "Environment vertebrate survivorship", "Pollution invertebrate fecundity", "Pollution invertebrate intensity", "Pollution invertebrate prevalence", "Pollution invertebrate survivorship", "Pollution vertebrate intensity", "Pollution vertebrate prevalence", "Pollution vertebrate survivorship", "Resource invertebrate fecundity", "Resource invertebrate intensity", "Resource invertebrate prevalence", "Resource invertebrate survivorship", "Resource vertebrate intensity", "Resource vertebrate prevalence", "Resource vertebrate survivorship"))
+                slab = c("variance", "Environment fecundity", "Environment intensity", "Environment prevalence", "Environment survivorship", "Pollution fecundity", "Pollution intensity", "Pollution prevalence", "Pollution survivorship", "Resource fecundity", "Resource intensity", "Resource prevalence", "Resource survivorship"))
 ```
 
 Using the robust variance estimator instead of the variance-covariance error matrix within studies
-```{r dat_3-PB-adjusted-RVE}
-Q3m7.B.R <-
+```{r dat_2-PB-adjusted-RVE}
+Q2.B.R <-
   rma.mv(
-    g ~ Trait.type:Gradient.category:Host.type.2 + var.g -1,
+    g ~ Trait.type:Gradient.category + var.g -1,
     V = var.g,
     random = list( ~ 1 | ID, ~ 1 | Experiment),
-    data = dat_3,
+    data = dat_2,
     method = "REML"
   )
 
-Q3m7.B.R_est <- clubSandwich::coef_test(Q3m7.B.R, vcov = "CR2")
+Q2.B.R_est <- clubSandwich::coef_test(Q2.B.R, vcov = "CR2")
 
-forest.default(x= Q3m7.B.R_est$beta, sei =  Q3m7.B.R_est$SE, ci.lb = (Q3m7.B.R_est$beta - 1.96 * Q3m7.B.R_est$SE) , ci.ub =(Q3m7.B.R_est$beta + 1.96 * Q3m7.B.R_est$SE), 
+forest.default(x= Q2.B.R_est$beta, sei =  Q2.B.R_est$SE, ci.lb = (Q2.B.R_est$beta - 1.96 * Q2.B.R_est$SE) , ci.ub =(Q2.B.R_est$beta + 1.96 * Q2.B.R_est$SE), 
                 annotate=TRUE, showweights=T, header=F, 
-                slab = c("variance","Environment invertebrate fecundity", "Environment invertebrate intensity", "Environment invertebrate prevalence", "Environment invertebrate survivorship", "Environment vertebrate intensity", "Environment vertebrate prevalence", "Environment vertebrate survivorship", "Pollution invertebrate fecundity", "Pollution invertebrate intensity", "Pollution invertebrate prevalence", "Pollution invertebrate survivorship", "Pollution vertebrate intensity", "Pollution vertebrate prevalence", "Pollution vertebrate survivorship", "Resource invertebrate fecundity", "Resource invertebrate intensity", "Resource invertebrate prevalence", "Resource invertebrate survivorship", "Resource vertebrate intensity", "Resource vertebrate prevalence", "Resource vertebrate survivorship"))
+                slab = c("variance","Environment fecundity", "Environment intensity", "Environment prevalence", "Environment survivorship", "Pollution fecundity", "Pollution intensity", "Pollution prevalence", "Pollution survivorship", "Resource fecundity", "Resource intensity", "Resource prevalence", "Resource survivorship"))
 ```
 
 ### Weighting the effects of (small) studies
@@ -1593,11 +976,10 @@ I'm also calculating the influence statistics cooks distance and dfbetas at the 
 A value is influential if "The hat value is larger than 3×(𝑝/𝑘)." where p is the number of coefficients and k the number of cases.
 
 #### Data set 1: fitness effects of environmental stress
-I'm running the analysis here for the model with the lowest AIC (Q1m7). We should probably do it for whichever model is our main model in the manuscript (probably this one?)
 
 ```{r dat_1-influence}
 # Cook's distance
-Cook_dat1 <- cooks.distance(Q1m7, progbar=TRUE, dat_1$Study, reestimate=TRUE, parallel="multicore", ncpus = 2)
+Cook_dat1 <- cooks.distance(Q1, progbar=TRUE, dat_1$Study, reestimate=TRUE, parallel="multicore", ncpus = 2)
 
 # how are these distances distributes?
 hist(Cook_dat1)
@@ -1606,7 +988,7 @@ hist(Cook_dat1)
 Cook_dat1[which(Cook_dat1 > 1)]
 
 # dfbetas
-dfbetas_dat1 <- dfbetas.rma.mv(Q1m7, progbar=TRUE, dat_1$Study, reestimate=TRUE, parallel="multicore")
+dfbetas_dat1 <- dfbetas.rma.mv(Q1, progbar=TRUE, dat_1$Study, reestimate=TRUE, parallel="multicore")
 
 # Which are the most influential studies?
 dfbetas_dat1[abs(dfbetas_dat1[,1])>1 | abs(dfbetas_dat1[,2])>1
@@ -1614,29 +996,28 @@ dfbetas_dat1[abs(dfbetas_dat1[,1])>1 | abs(dfbetas_dat1[,2])>1
              | abs(dfbetas_dat1[,5])>1 | abs(dfbetas_dat1[,6])>1,]
 
 # hat values
-hat_dat1 <- hatvalues(Q1m7) 
+hat_dat1 <- hatvalues(Q1) 
 
 # Which are the most influential effects?
-inf_cutoff <- 3 * length(Q1m7$beta)/nrow(dat_1)
+inf_cutoff <- 3 * length(Q1$beta)/nrow(dat_1)
 
 dat_1$Study[hat_dat1 > inf_cutoff]
 ```
 
-#### Data set 2: resistance effects of environmental stress
-I'm running the analysis here for the model with the lowest AIC (Q2m4). We should probably do it for which ever model is our main model in the manuscript (probably this one?)
+#### Data set 2: resistance vs fitness effects of environmental stress
 
 ```{r dat_2-influence}
 # Cook's distance
-Cook_dat2 <- cooks.distance(Q2m4, progbar=TRUE, dat_2$Study, reestimate=TRUE, parallel="multicore", ncpus = 2)
+Cook_dat2 <- cooks.distance(Q2, progbar=TRUE, dat_2$Study, reestimate=TRUE, parallel="multicore", ncpus = 4)
 
 # how are these distances distributes?
 hist(Cook_dat2)
 
 # Which are the most influential studies?
-Cook_dat2[which(Cook_dat2 > 1)]
+Cook_dat2[which(Cook_dat2 > 3)]
 
 # dfbetas
-dfbetas_dat2 <- dfbetas.rma.mv(Q2m4, progbar=TRUE, dat_2$Study, reestimate=TRUE, parallel="multicore")
+dfbetas_dat2 <- dfbetas.rma.mv(Q2, progbar=TRUE, dat_2$Study, reestimate=TRUE, parallel="multicore")
 
 # Which are the most influential studies?
 dfbetas_dat2[abs(dfbetas_dat2[,1])>1 | abs(dfbetas_dat2[,2])>1
@@ -1644,42 +1025,12 @@ dfbetas_dat2[abs(dfbetas_dat2[,1])>1 | abs(dfbetas_dat2[,2])>1
              | abs(dfbetas_dat2[,5])>1 | abs(dfbetas_dat2[,6])>1,]
 
 # hat values
-hat_dat2 <- hatvalues(Q2m4) 
+hat_dat2 <- hatvalues(Q2) 
 
 # Which are the most influential effects?
-inf_cutoff <- 3 * length(Q2m4$beta)/nrow(dat_2)
+inf_cutoff <- 3 * length(Q2$beta)/nrow(dat_2)
 
 dat_2$Study[hat_dat2 > inf_cutoff]
-```
-
-#### Data set 3: resistance vs fitness effects of environmental stress
-I'm running the analysis here for the model with the lowest AIC (Q3m4). We should probably do it for which ever model is our main model in the manuscript (probably this one?)
-
-```{r dat_3-influence}
-# Cook's distance
-Cook_dat3 <- cooks.distance(Q3m4, progbar=TRUE, dat_3$Study, reestimate=TRUE, parallel="multicore", ncpus = 4)
-
-# how are these distances distributes?
-hist(Cook_dat3)
-
-# Which are the most influential studies?
-Cook_dat3[which(Cook_dat3 > 3)]
-
-# dfbetas
-dfbetas_dat3 <- dfbetas.rma.mv(Q3m4, progbar=TRUE, dat_3$Study, reestimate=TRUE, parallel="multicore")
-
-# Which are the most influential studies?
-dfbetas_dat3[abs(dfbetas_dat3[,1])>1 | abs(dfbetas_dat3[,2])>1
-             | abs(dfbetas_dat3[,3])>1 | abs(dfbetas_dat3[,4])>1
-             | abs(dfbetas_dat3[,5])>1 | abs(dfbetas_dat3[,6])>1,]
-
-# hat values
-hat_dat3 <- hatvalues(Q3m4) 
-
-# Which are the most influential effects?
-inf_cutoff <- 3 * length(Q3m4$beta)/nrow(dat_3)
-
-dat_3$Study[hat_dat3 > inf_cutoff]
 ```
 
 # Heterogeneity
@@ -1770,8 +1121,8 @@ I2 <- function(model, v, ME = FALSE, sims = 1500, phylo = FALSE, obs = FALSE){
 First  I calculate I2 using the formula above from Nakagawa and Santos (2012) for the model without the var-covar matrix
 
 ```{r  dat_1-I2-RVE}
-I2.Q1m7 <- I2(Q1m7.B.R, v = dat_1$var.g, obs = "ID")*100
-I2.Q1m7
+I2.Q1 <- I2(Q1.B.R, v = dat_1$var.g, obs = "ID")*100
+I2.Q1
 ```
 
 If the variance-covariance matrix is included following the metafor example, total I2 becomes nearly 100%
@@ -1782,34 +1133,35 @@ If the variance-covariance matrix is included following the metafor example, tot
 W <- solve(varcovmat_1_PD$mat)
 
 # model matrix
-X <- model.matrix(Q1m7.B)
+X <- model.matrix(Q1.B)
 
 # estimate heterogeneity
 P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
 
 # overall I2: how much of total variance is attributed to heterogeneity
-100 * sum(Q1m7.B$sigma2) / (sum(Q1m7.B$sigma2) + (Q1m7.B$k-Q1m7.B$p)/sum(diag(P)))
+100 * sum(Q1.B$sigma2) / (sum(Q1.B$sigma2) + (Q1.B$k-Q1.B$p)/sum(diag(P)))
 
 # Heterogeneity within experiments, between experiments, between parasites
-100 * Q1m7.B$sigma2 / (sum(Q1m7.B$sigma2) + (Q1m7.B$k-Q1m7$p)/sum(diag(P)))
+100 * Q1.B$sigma2 / (sum(Q1.B$sigma2) + (Q1.B$k-Q1$p)/sum(diag(P)))
 
-sav <- confint(Q1m7.B)
+sav <- confint(Q1.B)
 
 # confidence intervals for I2
-100 * sav[[1]]$random[1,2:3] /(sum(Q1m7.B$sigma2) + (Q1m7.B$k-Q1m7.B$p)/sum(diag(P))) ### CI for ID-level I^2
-100 * sav[[2]]$random[1,2:3] / (sum(Q1m7.B$sigma2)+ (Q1m7.B$k-Q1m7.B$p)/sum(diag(P))) ### CI for the experiment-level I^2
-#100 * sav[[3]]$random[1,2:3] / (sum(Q1m7$sigma2) + (Q1m7$k-Q1m7$p)/sum(diag(P)))  ### CI for the parasite-level I^2
+100 * sav[[1]]$random[1,2:3] /(sum(Q1.B$sigma2) + (Q1.B$k-Q1.B$p)/sum(diag(P))) ### CI for ID-level I^2
+100 * sav[[2]]$random[1,2:3] / (sum(Q1.B$sigma2)+ (Q1.B$k-Q1.B$p)/sum(diag(P))) ### CI for the experiment-level I^2
+#100 * sav[[3]]$random[1,2:3] / (sum(Q1$sigma2) + (Q1$k-Q1$p)/sum(diag(P)))  ### CI for the parasite-level I^2
 ```
 
 ### Question 2
 First  I calculate I2 using the formula above from Nakagawa and Santos (2012) for the model without the var-covar matrix
 
 ```{r  dat_2-I2-RVE}
-I2.Q2m4 <- I2(Q2m4.R, v = dat_2$var.g, obs = "ID")*100
-I2.Q2m4
+I2.Q2 <- I2(Q2.B.R, v = dat_2$var.g, obs = "ID")*100
+I2.Q2
 ```
 
 If the variance-covariance matrix is included following the metafor example, total I2 becomes nearly 100%
+
 ```{r dat_2-I2}
 # we account for covariance in sampling errors by using V, but assuming equal heterogeneity between fecundity vs survival and between environment, pollution and resources.
 
@@ -1817,68 +1169,37 @@ If the variance-covariance matrix is included following the metafor example, tot
 W <- solve(varcovmat_2_PD$mat)
 
 # model matrix
-X <- model.matrix(Q2m4)
+X <- model.matrix(Q2.B)
 
 # estimate heterogeneity
 P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
 
 # overall I2: how much of total variance is attributed to heterogeneity
-100 * sum(Q2m4$sigma2) / (sum(Q2m4$sigma2) + (Q2m4$k-Q2m4$p)/sum(diag(P)))
+100 * sum(Q2.B$sigma2) / (sum(Q2.B$sigma2) + (Q2.B$k-Q2.B$p)/sum(diag(P)))
 
 # Heterogeneity between experiments, within experiments, between parasites
-100 * Q2m4$sigma2 / (sum(Q2m4$sigma2) + (Q2m4$k-Q2m4$p)/sum(diag(P)))
+100 * Q2.B$sigma2 / (sum(Q2.B$sigma2) + (Q2.B$k-Q2.B$p)/sum(diag(P)))
 
-sav2 <- confint(Q2m4)
-
-# confidence intervals for I2
-100 * sav2[[1]]$random[1,2:3] /(sum(Q2m4$sigma2) + (Q2m4$k-Q2m4$p)/sum(diag(P))) ### CI for experiment-level I^2
-100 * sav2[[2]]$random[1,2:3] / (sum(Q2m4$sigma2)+ (Q2m4$k-Q2m4$p)/sum(diag(P))) ### CI for the ID-level I^2
-#100 * sav2[[3]]$random[1,2:3] / (sum(Q2m4$sigma2) + (Q2m4$k-Q2m3$p)/sum(diag(P)))  ### CI for the parasite-level I^2
-```
-
-### Question 3
-First  I calculate I2 using the formula above from Nakagawa and Santos (2012) for the model without the var-covar matrix
-
-```{r  dat_3-I2-RVE}
-I2.Q3m7 <- I2(Q3m7.B.R, v = dat_3$var.g, obs = "ID")*100
-I2.Q3m7
-```
-
-If the variance-covariance matrix is included following the metafor example, total I2 becomes nearly 100%
-
-```{r dat_3-I2}
-# we account for covariance in sampling errors by using V, but assuming equal heterogeneity between fecundity vs survival and between environment, pollution and resources.
-
-# matrix of sampling variances and covariances W 
-W <- solve(varcovmat_3_PD$mat)
-
-# model matrix
-X <- model.matrix(Q3m7.B)
-
-# estimate heterogeneity
-P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
-
-# overall I2: how much of total variance is attributed to heterogeneity
-100 * sum(Q3m7.B$sigma2) / (sum(Q3m7.B$sigma2) + (Q3m7.B$k-Q3m7.B$p)/sum(diag(P)))
-
-# Heterogeneity between experiments, within experiments, between parasites
-100 * Q3m7.B$sigma2 / (sum(Q3m7.B$sigma2) + (Q3m7.B$k-Q3m7.B$p)/sum(diag(P)))
-
-sav3 <- confint(Q3m7.B)
+sav2 <- confint(Q2.B)
 
 # confidence intervals for I2
-100 * sav3[[1]]$random[1,2:3] /(sum(Q3m7.B$sigma2) + (Q3m7.B$k-Q3m7.B$p)/sum(diag(P))) ### CI for ID-level I^2
-100 * sav3[[2]]$random[1,2:3] / (sum(Q3m7.B$sigma2)+ (Q3m7.B$k-Q3m7.B$p)/sum(diag(P))) ### CI for the experiment-level I^2
-#100 * sav3[[3]]$random[1,2:3] / (sum(Q3m7.B$sigma2) + (Q3m7.B$k-Q3m7.B$p)/sum(diag(P)))  ### CI for the parasite-level I^2
+100 * sav2[[1]]$random[1,2:3] /(sum(Q2.B$sigma2) + (Q2.B$k-Q2.B$p)/sum(diag(P))) ### CI for ID-level I^2
+100 * sav2[[2]]$random[1,2:3] / (sum(Q2.B$sigma2)+ (Q2.B$k-Q2.B$p)/sum(diag(P))) ### CI for the experiment-level I^2
+#100 * sav2[[3]]$random[1,2:3] / (sum(Q2.B$sigma2) + (Q2.B$k-Q2.B$p)/sum(diag(P)))  ### CI for the parasite-level I^2
 ```
 
 ## Visualizations
 Orchard plots are a useful visualization technique for the distribution of effect size  (Nakagawa et al 2020). These plots cannot accommodate var-covar error matrices or covariates. For now, I will exclude host type and look at effects of each gradient category and trait type.
 
+```{r}
+devtools::install_github("itchyshin/orchard_plot", subdir = "orchaRd", force = TRUE, build_vignettes = TRUE)
+library(orchaRd)
+```
+
 ### Question 1
 
 ```{r Q1-orchard, message=FALSE}
-Q1m7.1 <-
+Q1.1 <-
   rma.mv(
     g ~ Gradient.category:Trait.type -1,
     V = var.g,
@@ -1888,15 +1209,15 @@ Q1m7.1 <-
   )
 
 pal <- RColorBrewer::brewer.pal(6,"Spectral")
-orchard_plot(Q1m7.1, mod = "var.g", xlab = "Standardised mean difference", transfm = "none", angle = 45, alpha = 0.7)+
+orchard_plot(Q1.1, mod = "var.g", xlab = "Standardised mean difference", transfm = "none", angle = 45, alpha = 0.7)+
  scale_fill_manual(values = pal) + scale_colour_manual(values = pal) #+ 
 scale_y_discrete( labels= c("Environment:Fecundity", "Pollution:Fecundity",  "Resource:Fecundity","Environment:Survival", "Pollution:Survival", "Resource:Survival"))
 ```
 
-### Question 2
-
+### Question 3
+We may want to consider changing the order in the y axis.
 ```{r Q2-orchard, message=FALSE}
-Q2m4.1 <-
+Q2.1 <-
   rma.mv(
     g ~ Gradient.category:Trait.type -1,
     V = var.g,
@@ -1905,27 +1226,8 @@ Q2m4.1 <-
     method = "REML"
   )
 
-pal <- RColorBrewer::brewer.pal(6,"Spectral")
-orchard_plot(Q2m4.1, mod = "Gradient.category", xlab = "Standardised mean difference", transfm = "none", angle = 45, alpha = 0.7)+
- scale_fill_manual(values = pal) + scale_colour_manual(values = pal) + 
-scale_y_discrete( labels= c("Environment:Intensity", "Pollution:Intensity",  "Resource:Intensity","Environment:Prevalence", "Pollution:Prevalence", "Resource:Prevalence")) +
-  xlim(-5,15.5)
-```
-
-### Question 3
-We may want to consider changing the order in the y axis.
-```{r Q3-orchard, message=FALSE}
-Q3m7.1 <-
-  rma.mv(
-    g ~ Gradient.category:Trait.type -1,
-    V = var.g,
-    random = list( ~ 1 | ID, ~ 1 | Experiment),
-    data = dat_3,
-    method = "REML"
-  )
-
-pal <- colorRampPalette(brewer.pal(11,"Spectral"))(length(Q3m7.1$beta))
-orchard_plot(Q3m7.1, mod = "Gradient.category", xlab = "Standardised mean difference", transfm = "none", angle = 45, alpha = 0.7)+
+pal <- colorRampPalette(brewer.pal(11,"Spectral"))(length(Q2.1$beta))
+orchard_plot(Q2.1, mod = "Gradient.category", xlab = "Standardised mean difference", transfm = "none", angle = 45, alpha = 0.7)+
  scale_fill_manual(values = pal) + scale_colour_manual(values = pal) + 
 scale_y_discrete( labels= c("Environment:Fecundity", "Pollution:Fecundity",  "Resource:Fecundity","Environment:Intensity", "Pollution:Intensity",  "Resource:Intensity","Environment:Prevalence", "Pollution:Prevalence", "Resource:Prevalence","Environment:Survival", "Pollution:Survival", "Resource:Survival")) 
 ```
