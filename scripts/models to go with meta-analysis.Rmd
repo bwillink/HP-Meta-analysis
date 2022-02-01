@@ -1,0 +1,166 @@
+---
+title: "Disease across gradients"
+author: "DJC"
+date: "1/26/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Disease dynamics across environmental gradients, based on Amanda's meta-analysis
+
+Gonna set up models to run over gradients of [Env factor] or an SI-Resource model and then embed the results that Amanda found in her meta-analysis of how traits respond to this variation.
+
+### Effects that Amanda detected in the meta-analysis
+
+First, tested for effects of stressors on demographic traits of uninfected vs. infected hosts (are infected more sensitive)? Meta-analysis found no *proportional* difference between the groups for survival or reproduction. So in the models, when we incorporate these effects, we want to a common parameter for the strength of these effects on both groups.
+
+#### Low resources
+Have negative effect on fecundity
+Causes a decrease in intensity
+
+
+#### Environmental gradients
+Have negative effect on survivorship
+Bad environments cause an increase in intensity
+
+#### Toxicants
+Have negative effect on survivorship
+Bad environments cause a decrease in prevalence
+
+```{r}
+rtools <- "C:\\Rtools\\bin"
+gcc <- "C:\\Rtools\\gcc-4.6.3\\bin"
+path <- strsplit(Sys.getenv("PATH"), ";")[[1]]
+new_path <- c(rtools, gcc, path)
+new_path <- new_path[!duplicated(tolower(new_path))]
+Sys.setenv(PATH = paste(new_path, collapse = ";"))
+
+
+# compile my model from C definition
+dyn.unload("C:/RData/env_gradient.dll") # unload dll
+system("R CMD SHLIB C:/RData/env_gradient.c")
+dyn.load("C:/RData/env_gradient.dll") # Load dll
+
+```
+
+
+
+```{r models}
+library(deSolve)
+
+SI_Resource = function(t, y, parameters) {
+  S=y[1]; I=y[2]; R=y[3]                   # For convenience, I like to spell out which state varible within the vector y is which
+  with(as.list(parameters),{         # The with() function allows us to write very clean equations for the model by telling r where to look for parameter names
+    dSdt= e*fM*R/(hr + R)*(S + rho*I) - BM*S*I - d*S    
+    dIdt= BM*R/(ht + R)*S*I - (d + v)*I   
+    dRdt = r*R*(1 - R/K) - fM*R/(hr + R)*(S+I)
+    result = c(dSdt,dIdt,dRdt)          # The function for simulation expects us to store the result this way
+    return(list(result))
+  }
+  ) 
+}
+
+Inits = c(S = 10, I = 1, R = 10)
+pars = c(r = 1, K = 10, fM = 0.1, hr = 2, ht = 2, e = 0.5, rho = 0.25, BM = 0.01, d = 0.01, v = 0.04)
+timespan = 10000
+
+sim1 = ode(y=Inits, times=0:timespan, method="lsoda", func=SI_Resource, parms = pars)
+plot(I ~ time, data=sim1)
+
+# Simulate over resource growth rate gradient and collect results
+S_result = numeric()
+I_result = numeric()
+R_result = numeric()
+r_inputs = seq(from = 0, to = 2, length.out = 100)
+
+for(i in 1:length(r_inputs)){
+  pars["r"] = r_inputs[i]
+  sim = ode(y=Inits, times=0:timespan, method="lsoda", func=SI_Resource, parms = pars)
+  S_result[i] = sim[dim(sim)[1], 2]
+  I_result[i] = sim[dim(sim)[1], 3]
+  R_result[i] = sim[dim(sim)[1], 4]
+}
+
+sim_summary = data.frame("resource_r" = r_inputs, "S_eq" = S_result, "I_eq" = I_result, "R_eq" = R_result)
+
+plot(I_eq ~ resource_r, data=sim_summary, typ="l")
+plot(S_eq ~ resource_r, data=sim_summary, typ="l") # Need to run longer to get to equilibrium
+plot(R_eq ~ resource_r, data=sim_summary, typ="l") # Need to run longer to get to equilibrium
+plot(I_eq/(S_eq + I_eq) ~ resource_r, data=sim_summary, typ="l") # Need to run longer than 10000 time steps to get to equilibrium w/o disease
+
+
+#### Can rerun this simulation with different relative sensitivity of transmission rate to food (varying ht vs hr)
+
+```
+```{r models2}
+library(deSolve)
+
+SI_Env = function(t, y, parameters) {
+  S=y[1]; I=y[2];                 # For convenience, I like to spell out which state varible within the vector y is which
+  with(as.list(parameters),{         # The with() function allows us to write very clean equations for the model by telling r where to look for parameter names
+    dSdt= b*(S + rho*I)*(1 - (S+I)/K) - B*(1 + BE*ENV)*S*I - d*(1 + dE*ENV)*S    
+    dIdt= B*(1 + BE*ENV)*S*I - (d + v)*(1 + dE*ENV)*I   
+    result = c(dSdt,dIdt)          # The function for simulation expects us to store the result this way
+    return(list(result))
+  }
+  ) 
+}
+
+Inits = c(S = 10, I = 1)
+pars = c(b = 0.5, rho = 0.25, K = 10, B = 0.01, BE=1, d = 0.01, dE=4, ENV=0, v = 0.04)
+timespan = 10000
+
+sim1 = ode(y=Inits, times=0:timespan, method="lsoda", func=SI_Env, parms = pars)
+plot(I ~ time, data=sim1)
+
+# Simulate over resource growth rate gradient and collect results
+S_result = numeric()
+I_result = numeric()
+E_inputs = seq(from = 0, to = 1, length.out = 100)
+BE_inputs = seq(from = -1, to = 40, length.out = 100)
+
+Env_inputs = numeric()
+BE_sim_inputs = numeric()
+k = 1
+    
+for(i in 1:length(E_inputs)){
+  pars["ENV"] = E_inputs[i]
+  for(j in 1:length(BE_inputs)){
+    pars["BE"] = BE_inputs[j]
+    sim = lsoda(y = Inits, times=0:timespan, parms = pars, nout=1, func="derivs", dllname = "env_gradient", initfunc="initmod",  maxsteps=1e5)
+    Env_inputs[k] = E_inputs[i]
+    BE_sim_inputs[k] = BE_inputs[j]
+    S_result[k] = sim[dim(sim)[1], 2]
+    I_result[k] = sim[dim(sim)[1], 3]
+    if(k %% 1000 == 0){print(k)}
+    k = k + 1
+  }
+}
+
+sim_summary = data.frame("Environment" = Env_inputs, "Beta_sensitivity" = BE_sim_inputs, "S_eq" = S_result, "I_eq" = I_result, "Prev_eq" = I_result/(S_result + I_result))
+
+plot(I_eq ~ Environment, data=sim_summary, typ="p")
+plot(S_eq ~ Environment, data=sim_summary, typ="p")
+plot(I_eq/(S_eq + I_eq) ~ Environment, data=sim_summary, typ="p")
+
+
+#### make a better plot
+library(ggplot2)
+plot1 <- ggplot(sim_summary, aes(x = Environment, y = Beta_sensitivity, z = Prev_eq)) +
+         geom_tile(aes(fill = Prev_eq)) + stat_contour() 
+plot1
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
