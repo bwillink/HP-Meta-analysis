@@ -89,15 +89,15 @@ levels(as.factor(dat$Variation.Type))
 
 ## Median and IQ range to mean 
 ```{r}
-non_par <- dat[which(dat$Variation.Type == "Median_IQ"),]
+non_par_2 <- dat[which(dat$Variation.Type == "Median_IQ"),]
 
 # Estimate mean for control and treatment from median and IQ range
-non_par$Estimated_Mean_C <- (non_par$Lwr_C + non_par$Mean_C + non_par$Upr_C) / 3
-non_par$Estimated_Mean_X <- (non_par$Lwr_X + non_par$Mean_X + non_par$Upr_X) / 3
+non_par_2$Estimated_Mean_C <- (non_par_2$Lwr_C + non_par_2$Mean_C + non_par_2$Upr_C) / 3
+non_par_2$Estimated_Mean_X <- (non_par_2$Lwr_X + non_par_2$Mean_X + non_par_2$Upr_X) / 3
 
 # overwrite dat
-dat$Mean_C[which(dat$Variation.Type == "Median_IQ")] <- non_par$Estimated_Mean_C 
-dat$Mean_X[which(dat$Variation.Type == "Median_IQ")] <- non_par$Estimated_Mean_X
+dat$Mean_C[which(dat$Variation.Type == "Median_IQ")] <- non_par_2$Estimated_Mean_C 
+dat$Mean_X[which(dat$Variation.Type == "Median_IQ")] <- non_par_2$Estimated_Mean_X
 
 dat$Variation.Type[which(dat$Variation.Type == "Median_IQ")] <- "IQ"
 
@@ -530,6 +530,74 @@ dat_2 <- mutate(dat_2, Gradient.category.2 = case_when(
 
 ```
 
+# Numbers mentioned in the methods
+The Methods section describes various features of the data, indicating the number of studies/effects with those features. Numbers are calculated here. 
+
+```{r}
+# First, get all the curated data
+final_dat <- merge(dat_2, dat_1, all = T )
+nrow(final_dat)
+
+# Number of studies that report median instead of mean
+c(unique(non_par$Study), unique(non_par_2$Study)) %in% final_dat$Study
+length(unique(non_par$Study)) + length(unique(non_par_2$Study)) 
+length(non_par$ID) + length(non_par_2$ID) 
+
+# number of studies with only data range
+length(non_par$ID)
+length(unique(non_par$Study))
+
+# number of studies with only IQ
+length(non_par_2$ID)
+length(unique(non_par_2$Study))
+
+# number of studies with OR
+length(unique(final_dat$Study[final_dat$Variation.Type == "OR"]))
+
+# number or studies w/ multiple treatment levels or measuring time points
+k = c()
+for(i in 2:nrow(final_dat)){
+ if(final_dat$Trait[i] == final_dat$Trait[i-1] &
+    final_dat$X_gradient[i] == final_dat$X_gradient[i-1] &
+    final_dat$Host[i] == final_dat$Host[i-1] &
+    final_dat$Parasite[i] == final_dat$Parasite[i-1]) {
+   k <- append(k, final_dat$Experiment[i])
+    }
+}
+length(unique(k))
+
+# studies with negative eigen values
+sum(unique(c(Neg_eigen_1$eigen,Neg_eigen_2$study)) %in% final_dat$Study == T)
+
+# how many experiments
+length(unique(final_dat$Experiment))
+
+# how many studies include more than one experiment
+k = c()
+for(i in 2:nrow(final_dat)){
+ if(final_dat$Experiment[i] != final_dat$Experiment[i-1] &
+    final_dat$Study[i] == final_dat$Study[i-1]) {
+   k <- append(k, final_dat$Study[i])
+    }
+}
+length(unique(k))
+
+# how many species per taxonomic groups
+length(unique(final_dat$Host[final_dat$Host.type == "Arthropod"]))
+length(unique(final_dat$Host[final_dat$Host.type == "Mollusc"]))
+length(unique(final_dat$Host[final_dat$Host.type == "Fish"]))
+length(unique(final_dat$Host[final_dat$Host.type == "Amphibian"]))
+length(unique(final_dat$Host[final_dat$Host.type == "Reptile"]))
+length(unique(final_dat$Host[final_dat$Host.type == "Bird"]))
+length(unique(final_dat$Host[final_dat$Host.type == "Mammal"]))
+
+length(unique(final_dat$Parasite[final_dat$Parasite.type == "Bacteria"]))
+length(unique(final_dat$Parasite[final_dat$Parasite.type == "Fungus"]))
+length(unique(final_dat$Parasite[final_dat$Parasite.type == "Helminth"]))
+length(unique(final_dat$Parasite[final_dat$Parasite.type == "Myxozoa"]))
+length(unique(final_dat$Parasite[final_dat$Parasite.type == "Protozoan"]))
+length(unique(final_dat$Parasite[final_dat$Parasite.type == "Virus"]))
+```
 
 # Descriptive statistics
 ```{r descriptive-stats, echo=FALSE}
@@ -674,7 +742,7 @@ Q1 <-
   rma.mv(
     g ~ Trait.type:Gradient.category -1 ,
     V = varcovmat_1_PD$mat,
-    random = list( ~ 1 | Experiment/ID, ~ 1 | Parasite),
+    random = list( ~ 1 | Experiment, ~ 1 | ID),
     data = dat_1,
     method = "REML"
   )
@@ -748,7 +816,7 @@ Q2 <-
   rma.mv(
     g ~ Trait.type:Gradient.category -1,
     V = varcovmat_2_PD$mat,
-    random = list( ~ 1 | Experiment/ID, ~ 1 | Parasite),
+    random = list( ~ 1 | Experiment, ~1 | ID, ~ 1 | Parasite),
     data = dat_2,
     method = "REML",
 )
@@ -777,7 +845,7 @@ Estimation of conditional residuals is not available to rma.mv objects (which ca
 # any fitting method other than "FE" works for a random/mixed effects model
 Q1.uni <-
   rma.uni(
-    g ~ Trait.type:Gradient.category + Experiment + ID ,
+    g ~ Trait.type:Gradient.category + Experiment + ID + Parasite.type ,
     vi = dat_1$var.g,
     data = dat_1,
     method = "REML"
@@ -1202,15 +1270,15 @@ library(orchaRd)
 Q1.1 <-
   rma.mv(
     g ~ Gradient.category:Trait.type -1,
-    V = var.g,
+    V = varcovmat_1_PD$mat,
     random = list( ~ 1 | ID, ~ 1 | Experiment),
     data = dat_1,
     method = "REML"
   )
 
 pal <- RColorBrewer::brewer.pal(6,"Spectral")
-orchard_plot(Q1.1, mod = "var.g", xlab = "Standardised mean difference", transfm = "none", angle = 45, alpha = 0.7)+
- scale_fill_manual(values = pal) + scale_colour_manual(values = pal) #+ 
+orchard_plot(Q1, mod = "var.g", xlab = "Standardised mean difference", transfm = "none", angle = 45, alpha = 0.7)+
+ scale_fill_manual(values = pal) + scale_colour_manual(values = pal)# + 
 scale_y_discrete( labels= c("Environment:Fecundity", "Pollution:Fecundity",  "Resource:Fecundity","Environment:Survival", "Pollution:Survival", "Resource:Survival"))
 ```
 
