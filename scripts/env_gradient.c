@@ -31,8 +31,8 @@ if (ip[0] <1) error("nout should be at least 1");
 double S = y[0];
 double I = y[1];
 
-ydot[0] = b*(S + rho*I)*(1 - (S+I)/K) - B*(1 + BE*ENV)*S*I - d*(1 + dE*ENV)*S;
-ydot[1] =  B*(1 + BE*ENV)*S*I - (d + v)*(1 + dE*ENV)*I;
+ydot[0] = b*(S + rho*I)*(1 - (S+I)/K) - B*exp(BE*ENV)*S*I - d*exp(dE*ENV)*S;
+ydot[1] =  B*exp(BE*ENV)*S*I - (d + v)*exp(dE*ENV)*I;
 
 yout[0] = 0;
 

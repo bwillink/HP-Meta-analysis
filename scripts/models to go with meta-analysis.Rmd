@@ -38,9 +38,13 @@ new_path <- c(rtools, gcc, path)
 new_path <- new_path[!duplicated(tolower(new_path))]
 Sys.setenv(PATH = paste(new_path, collapse = ";"))
 
+# compile food gradient model from C definition
+try(dyn.unload("C:/RData/food_gradient.dll")) # unload dll
+system("R CMD SHLIB C:/RData/food_gradient.c")
+dyn.load("C:/RData/food_gradient.dll") # Load dll
 
-# compile my model from C definition
-dyn.unload("C:/RData/env_gradient.dll") # unload dll
+# compile environmental gradient model from C definition
+try(dyn.unload("C:/RData/env_gradient.dll")) # unload dll
 system("R CMD SHLIB C:/RData/env_gradient.c")
 dyn.load("C:/RData/env_gradient.dll") # Load dll
 
@@ -50,59 +54,58 @@ dyn.load("C:/RData/env_gradient.dll") # Load dll
 
 ```{r models}
 library(deSolve)
-
-SI_Resource = function(t, y, parameters) {
-  S=y[1]; I=y[2]; R=y[3]                   # For convenience, I like to spell out which state varible within the vector y is which
-  with(as.list(parameters),{         # The with() function allows us to write very clean equations for the model by telling r where to look for parameter names
-    dSdt= e*fM*R/(hr + R)*(S + rho*I) - BM*S*I - d*S    
-    dIdt= BM*R/(ht + R)*S*I - (d + v)*I   
-    dRdt = r*R*(1 - R/K) - fM*R/(hr + R)*(S+I)
-    result = c(dSdt,dIdt,dRdt)          # The function for simulation expects us to store the result this way
-    return(list(result))
-  }
-  ) 
-}
+library(ggplot2)
 
 Inits = c(S = 10, I = 1, R = 10)
-pars = c(r = 1, K = 10, fM = 0.1, hr = 2, ht = 2, e = 0.5, rho = 0.25, BM = 0.01, d = 0.01, v = 0.04)
-timespan = 10000
+pars = c(r = 1, K = 10, fM = 0.1, hr = 4, ht = 2, e = 0.5, rho = 0.25, BM = 0.01, d = 0.01, v = 0.04)
+timespan = 100000
 
-sim1 = ode(y=Inits, times=0:timespan, method="lsoda", func=SI_Resource, parms = pars)
-plot(I ~ time, data=sim1)
+sim1 = lsoda(y = Inits, times=0:timespan, parms = pars, func="derivs", dllname = "food_gradient", initfunc="initmod",  maxsteps=1e6)
+#plot(I ~ time, data=sim1)
 
 # Simulate over resource growth rate gradient and collect results
 S_result = numeric()
 I_result = numeric()
 R_result = numeric()
-r_inputs = seq(from = 0, to = 2, length.out = 100)
+r_inputs = seq(from = 0.1, to = 1, length.out = 100)
+ht_inputs = c(0, 1, 2, 4, 8)
 
+r_sim_inputs = numeric()
+ht_sim_inputs = numeric()
+k = 1
+    
 for(i in 1:length(r_inputs)){
   pars["r"] = r_inputs[i]
-  sim = ode(y=Inits, times=0:timespan, method="lsoda", func=SI_Resource, parms = pars)
-  S_result[i] = sim[dim(sim)[1], 2]
-  I_result[i] = sim[dim(sim)[1], 3]
-  R_result[i] = sim[dim(sim)[1], 4]
+  for(j in 1:length(ht_inputs)){
+    pars["ht"] = ht_inputs[j]
+    sim = lsoda(y = Inits, times=0:timespan, parms = pars, func="derivs", dllname = "food_gradient", initfunc="initmod", hmax=0.1,  maxsteps=1e7)
+    r_sim_inputs[k] = r_inputs[i]
+    ht_sim_inputs[k] = ht_inputs[j]
+    S_result[k] = sim[dim(sim)[1], 2]
+    I_result[k] = sim[dim(sim)[1], 3]
+    R_result[k] = sim[dim(sim)[1], 4]
+    if(k %% 1000 == 0){print(k)}
+    k = k + 1
+  }
 }
 
-sim_summary = data.frame("resource_r" = r_inputs, "S_eq" = S_result, "I_eq" = I_result, "R_eq" = R_result)
+sim_summary = data.frame("resource_r" = r_sim_inputs, "ht" = ht_sim_inputs, "S_eq" = S_result, "I_eq" = I_result, "R_eq" = R_result,
+                         "Prev_eq" = I_result/(S_result + I_result))
 
-plot(I_eq ~ resource_r, data=sim_summary, typ="l")
-plot(S_eq ~ resource_r, data=sim_summary, typ="l") # Need to run longer to get to equilibrium
-plot(R_eq ~ resource_r, data=sim_summary, typ="l") # Need to run longer to get to equilibrium
-plot(I_eq/(S_eq + I_eq) ~ resource_r, data=sim_summary, typ="l") # Need to run longer than 10000 time steps to get to equilibrium w/o disease
-
-
-#### Can rerun this simulation with different relative sensitivity of transmission rate to food (varying ht vs hr)
+plot1 <- ggplot(sim_summary, aes(x = resource_r, y = Prev_eq, group = ht)) +
+          geom_line() 
+plot1
 
 ```
 ```{r models2}
 library(deSolve)
+library(ggplot2)
 
 SI_Env = function(t, y, parameters) {
   S=y[1]; I=y[2];                 # For convenience, I like to spell out which state varible within the vector y is which
   with(as.list(parameters),{         # The with() function allows us to write very clean equations for the model by telling r where to look for parameter names
-    dSdt= b*(S + rho*I)*(1 - (S+I)/K) - B*(1 + BE*ENV)*S*I - d*(1 + dE*ENV)*S    
-    dIdt= B*(1 + BE*ENV)*S*I - (d + v)*(1 + dE*ENV)*I   
+    dSdt= b*(S + rho*I)*(1 - (S+I)/K) - B*exp(BE*ENV)*S*I - d*exp(dE*ENV)*S    
+    dIdt= B*exp(BE*ENV)*S*I - (d + v)*exp(dE*ENV)*I   
     result = c(dSdt,dIdt)          # The function for simulation expects us to store the result this way
     return(list(result))
   }
@@ -110,17 +113,16 @@ SI_Env = function(t, y, parameters) {
 }
 
 Inits = c(S = 10, I = 1)
-pars = c(b = 0.5, rho = 0.25, K = 10, B = 0.01, BE=1, d = 0.01, dE=4, ENV=0, v = 0.04)
+pars = c(b = 0.5, rho = 0.25, K = 10, B = 0.01, BE=1, d = 0.01, dE=2, ENV=0, v = 0.04)
 timespan = 10000
 
 sim1 = ode(y=Inits, times=0:timespan, method="lsoda", func=SI_Env, parms = pars)
-plot(I ~ time, data=sim1)
 
 # Simulate over resource growth rate gradient and collect results
 S_result = numeric()
 I_result = numeric()
 E_inputs = seq(from = 0, to = 1, length.out = 100)
-BE_inputs = seq(from = -1, to = 40, length.out = 100)
+BE_inputs = c(-8, -4, -2, 0, 2, 4, 8)#seq(from = -1, to = 40, length.out = 100)
 
 Env_inputs = numeric()
 BE_sim_inputs = numeric()
@@ -130,7 +132,7 @@ for(i in 1:length(E_inputs)){
   pars["ENV"] = E_inputs[i]
   for(j in 1:length(BE_inputs)){
     pars["BE"] = BE_inputs[j]
-    sim = lsoda(y = Inits, times=0:timespan, parms = pars, nout=1, func="derivs", dllname = "env_gradient", initfunc="initmod",  maxsteps=1e5)
+    sim = lsoda(y = Inits, times=0:timespan, parms = pars, nout=1, func="derivs", dllname = "env_gradient", initfunc="initmod",  maxsteps=1e6)
     Env_inputs[k] = E_inputs[i]
     BE_sim_inputs[k] = BE_inputs[j]
     S_result[k] = sim[dim(sim)[1], 2]
@@ -142,25 +144,9 @@ for(i in 1:length(E_inputs)){
 
 sim_summary = data.frame("Environment" = Env_inputs, "Beta_sensitivity" = BE_sim_inputs, "S_eq" = S_result, "I_eq" = I_result, "Prev_eq" = I_result/(S_result + I_result))
 
-plot(I_eq ~ Environment, data=sim_summary, typ="p")
-plot(S_eq ~ Environment, data=sim_summary, typ="p")
-plot(I_eq/(S_eq + I_eq) ~ Environment, data=sim_summary, typ="p")
-
-
-#### make a better plot
-library(ggplot2)
-plot1 <- ggplot(sim_summary, aes(x = Environment, y = Beta_sensitivity, z = Prev_eq)) +
-         geom_tile(aes(fill = Prev_eq)) + stat_contour() 
+plot1 <- ggplot(sim_summary, aes(x = Environment, y = Prev_eq, group = Beta_sensitivity)) +
+          geom_line() 
 plot1
 
+
 ```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
