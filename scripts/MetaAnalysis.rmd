@@ -52,6 +52,19 @@ dat <- dat[which(dat$Gradient.category != "Ecological"),]
 
 # Check gradient categories 
 levels(as.factor(dat$Gradient.category))
+
+# Check pollution experiments are actually chemical pollution
+levels(as.factor(dat$X_gradient[dat$Gradient.category == "Pollution"]))
+
+# Nocturnal light and noise should be "Environment"
+dat$Gradient.category[dat$X_gradient == "Noctural light"] <- "Environment"
+dat$Gradient.category[dat$X_gradient == "Noise"] <- "Environment"
+
+# Check Environment experiments are not chemical pollution
+levels(as.factor(dat$X_gradient[dat$Gradient.category == "Environment"]))
+
+# Check resource limitation experiments are actual resources
+levels(as.factor(dat$X_gradient[dat$Gradient.category == "Resource"]))
 ```
 
 ## Median, min, max and n to mean and SD
@@ -316,6 +329,15 @@ for(i in mort){
 }
 ```
 
+## flip effect sizes for prevalence and intensity
+```{r standardize-survival}
+resist <- grep(pattern = "Intensity|Prevalence", x = dat$Trait.type)
+
+for(i in resist){
+  dat$g[i] <- -dat$g[i]
+}
+```
+
 # Prepare data
 Filter experiments with both epidemiological and infected demographic effects
 ```{r divide-datasets}
@@ -538,6 +560,9 @@ The Methods section describes various features of the data, indicating the numbe
 final_dat <- merge(dat_2, dat_1, all = T )
 nrow(final_dat)
 
+# do we have any observational studies left after filtering?
+levels(as.factor(final_dat$Study.type))
+
 # Number of studies that report median instead of mean
 c(unique(non_par$Study), unique(non_par_2$Study)) %in% final_dat$Study
 length(unique(non_par$Study)) + length(unique(non_par_2$Study)) 
@@ -723,7 +748,7 @@ full_model.1 <- rma.mv(
     g,
     V = varcovmat_1_PD$mat,
     mods = ~ Trait.category*Trait.type*Gradient.category, 
-    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    random = list( ~ 1 | ID, ~ 1 | Experiment),
     data = dat_1,
     method = "ML"
   )
@@ -733,7 +758,6 @@ subset(model_selection.1, delta <= 10, recalc.weights = FALSE)
 
 # relative importance values for the predictors can be obtained with:
 importance(model_selection.1)
-
 ```
 
 ### Best Model: Effects in  survival vs fecundity under different types of stress, combining infected and uninfected
@@ -761,10 +785,11 @@ full_model.2 <- rma.mv(
     g,
     V = varcovmat_2_PD$mat,
     mods = ~ Trait.type*Gradient.category, 
-    random = list( ~ 1 | ID, ~ 1 | Experiment, ~ 1 | Parasite),
+    random = list( ~ 1 | ID, ~ 1 | Experiment),
     data = dat_2,
     method = "ML"
   )
+
 # Define if using Trait.type or Trait.category
 model_selection.2 <- dredge(full_model.2, trace = 2) 
 subset(model_selection.2, delta <= 10, recalc.weights = FALSE)
