@@ -30,6 +30,7 @@ Bad environments cause an increase in intensity
 Have negative effect on survivorship
 Bad environments cause a decrease in prevalence
 
+For Windows
 ```{r}
 rtools <- "C:\\Rtools\\bin"
 gcc <- "C:\\Rtools\\gcc-4.6.3\\bin"
@@ -47,6 +48,30 @@ dyn.load("C:/RData/food_gradient.dll") # Load dll
 try(dyn.unload("C:/RData/env_gradient.dll")) # unload dll
 system("R CMD SHLIB C:/RData/env_gradient.c")
 dyn.load("C:/RData/env_gradient.dll") # Load dll
+
+
+```
+For Mac - Not working yet!!
+```{r}
+# 1. Download Xcode from the App Store. Open the installed Xcode app, agree to the license, and let it install some "components"
+# 2. Open the terminal, type "xcode-select --install" and follow the dialog that open
+# 3. Verify that the C compiler gcc is installed by opening the terminal and running the command clang. You should see an error that says “no input files”
+# 4. Download and install the gfortran compiler .dmg from https://github.com/fxcoudert/gfortran-for-macOS/releases. Choose the latest version that is compatible with your operating system. Verify the installation by opening the terminal and running the command "gfortran". You should see an error that says “no input files”.
+# 5. Go to https://www.xquartz.org/, download the .dmg and run the installer.
+# 6. Verify that build tools are installed and available by opening an R console and running
+install.packages("pkgbuild")
+pkgbuild::check_build_tools()
+
+# compile food gradient model from C definition
+try(dyn.unload("food_gradient.so")) # unload so
+system("R CMD SHLIB /food_gradient.c")
+dyn.load("food_gradient.dylib") # Load so
+
+
+# 7. install Rcpp and RcppArmadillo
+install.packages(c('Rcpp', 'RcppArmadillo'))
+# 8. Compile the function using:
+Rcpp::sourceCpp('env_gradient.cpp')
 
 ```
 
