@@ -474,7 +474,7 @@ Neg_eigen_2 %>%
   kable_material(c("striped", "hover"), full_width = F)
 ```
 
-Based on these eigenvalues, we looked back at the studies/experiments and determined if they had issues with reporting N or variance. We decided to remove two such studies for data set 1 (Ashraf et al. 2017 and Shostak et al. 2015) and one such study for data set 2 & 3 (Ashraf et al. 2017). 
+Based on these eigenvalues, we looked back at the studies/experiments and determined if they had issues with reporting N or variance. We decided to remove two such studies for data set 1 (Ashraf et al. 2017 and Shostak et al. 2015) and one such study for data set 2 (Ashraf et al. 2017). 
 
 As we found no errors or causes of concern for other studies with barely negative eigenvalues, we are forcing the var-covar matrices to the nearest positive definite values, while keeping the diagonals (var) to the estimated values and modifying only the expected covariances.
 
@@ -544,7 +544,7 @@ dat_2 <- mutate(dat_2, Host.type.2 = case_when(
 
 ```
 
-Create a new column collapsing pollution and environmental stress
+Create a new column collapsing pollution and environmental stress into one "Environment" category
 ```{r pollution/environment stress category, echo=FALSE}
 dat_1 <- mutate(dat_1, Gradient.category.2 = case_when(
   Gradient.category == "Pollution" ~ "Environment",
