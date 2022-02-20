@@ -122,7 +122,7 @@ dat$Variation.Type[which(dat$Variation.Type == "Median_IQ")] <- "IQ"
 levels(as.factor(dat$Variation.Type))
 ```
 
-## subset effects with workable "variation types"
+## Subset effects with workable "variation types"
 ```{r}
 nrow(dat)
 
@@ -324,7 +324,7 @@ dat$g <- dat$J * dat$d
 dat$var.g <- (dat$J ^ 2) * dat$var.d
 ```
 
-## flip effect sizes for remaining mortality effects
+## Flip effect sizes for remaining mortality effects
 ```{r standardize-survival}
 mort <- grep(pattern = "[M,m]ort", x = dat$Trait)
 
@@ -333,8 +333,8 @@ for(i in mort){
 }
 ```
 
-## flip effect sizes for prevalence and intensity
-```{r flip-effect-resistance}
+## Flip effect sizes for prevalence and intensity
+```{r flip-effect-infectivity}
 resist <- grep(pattern = "Intensity|Prevalence", x = dat$Trait.type)
 
 for(i in resist){
@@ -526,7 +526,7 @@ varcovmat_2_PD <- nearPD(varcovmat_2, keepDiag = TRUE)
 ```
 
 Create a new column with a category of vertebrate or invertebrate (keeping this for now)
-```{r vertebrate/invertebrate host category, echo=FALSE}
+```{r vertebrate/invertebrate host category}
 dat_1 <- mutate(dat_1, Host.type.2 = case_when(
   Host.type == "Fish" ~ "Vertebrate",
   Host.type == "Arthropod" ~ "Invertebrate",
@@ -545,7 +545,7 @@ dat_2 <- mutate(dat_2, Host.type.2 = case_when(
 ```
 
 Create a new column collapsing pollution and environmental stress into one "Environment" category
-```{r pollution/environment stress category, echo=FALSE}
+```{r pollution/environment stress category}
 dat_1 <- mutate(dat_1, Gradient.category.2 = case_when(
   Gradient.category == "Pollution" ~ "Environment",
   Gradient.category == "Environment" ~ "Environment",
@@ -719,8 +719,8 @@ Make Table 2 with results from Q1
 
 ```{r Q1 Results table}
 
-Table2 <- data.frame(Stressor_type = c("endogenous environment", "endogenous environment", "chemical pollution", "chemical pollution", "resource limitation","resource limitation"),
-                     Response_trait = c(rep(c("fecundity", "survivorship"), 3)),
+Table2 <- data.frame(Stressor_type = c("Endogenous environment", "Endogenous environment", "Chemical pollution", "Chemical pollution", "Resource limitation","Resource limitation"),
+                     Response_trait = c(rep(c("Fecundity", "Survivorship"), 3)),
                      Overall_mean = round(Q1$beta,3),
                      Lower_95 = round(Q1$ci.lb,3),
                      Upper_95 = round(Q1$ci.ub,3),
@@ -778,7 +778,7 @@ Q1_OP <-
 Q1_OP
 ```
 #### RVE
-We check if our results are qualitatively similar if we use the robust variance estimator insteed of the vara-covar matrix for effects estimated in the same experiment.
+We check if our results are qualitatively similar if we use the robust variance estimator instead of the var-covar matrix for effects estimated in the same experiment.
 
 ```{r Q1 best RVE}
 Q1.R <-
@@ -799,7 +799,7 @@ forest.default(x= Q1.R_est$beta, sei =  Q1.R_est$SE, pch = 19,
 ```
 
 
-## Question 2 - Do resistance and fitness traits have different sensitivity to stressors?
+## Question 2 - Do fitness and infectivity traits have different sensitivity to stressors?
 ### Model selection
 #### All stressors
 ```{r Model selection Q2}
@@ -839,7 +839,7 @@ importance(model_selection.2.merged)
 
 ```
 
-#### Resistance versus fitness traits 
+#### Fitness versus infectivity traits 
 ```{r}
 full_model.2.rvf <- rma.mv(
     g,
@@ -899,8 +899,8 @@ Q2_OP <-
 Q2_OP
 ```
 #### Contrasts
-Wald-type chi-square tests contrasting resistance vs fitness effects on infected hosts.
-```{r resistance vs fitness contrasts adjusted}
+Wald-type chi-square tests contrasting fitness vs infectivity effects on infected hosts.
+```{r fitness vs infectivity contrasts adjusted}
 # Environment
 # Prevalence vs Fecundity
 anova(Q2, X=c(-1,0,1,0,0,0,0,0,0,0,0,0))
@@ -934,8 +934,8 @@ anova(Q2, X=c(0,0,0,0,0,0,0,0,0,-1,0,1))
 
 ```{r Q2 Results table}
 
-Table3 <- data.frame(Stressor_type = rep(c("endogenous environment",  "chemical pollution","resource limitation"), each = 4),
-                     Response_trait = c(rep(c("prevalence","intensity","fecundity", "survivorship"), 3)),
+Table3 <- data.frame(Stressor_type = rep(c("Endogenous environment",  "Chemical pollution","Resource limitation"), each = 4),
+                     Response_trait = c(rep(c("Prevalence","Intensity","Fecundity", "Survivorship"), 3)),
                      Overall_mean = round(Q2$beta,3),
                      Lower_95 = round(Q2$ci.lb,3),
                      Upper_95 = round(Q2$ci.ub,3),
@@ -987,7 +987,7 @@ Table3 %>%
 ```
 
 #### RVE
-We check if our results are qualitatively similar if we use the robust variance estimator insteed of the var-covar matrix for effects estimated in the same experiment.
+We check if our results are qualitatively similar if we use the robust variance estimator instead of the var-covar matrix for effects estimated in the same experiment.
 
 ```{r Q2 best RVE}
 Q2.R <-
@@ -1146,7 +1146,7 @@ metafor::funnel(Q1res$resid, sqrt(dat_1$var.g), level=c(90, 95, 99), shade=c("wh
 
 We can see that as SE increases (e.g ~ 1) all studies report large negative fitness effects of environmental stress (large negative residuals). In other words, it seems that very small studies tend to find that environmental stress is more negative to fitness!
 
-#### Data set 2: resistance and fitness effects of environmental stress
+#### Data set 2: Fitness and infectivity effects of environmental stress
 ```{r dat_2-funnel}
 # re fit as a mixed effects model with rma.uni
 # any fitting method other than "FE" works for a random/mixed effects model
@@ -1169,7 +1169,7 @@ pal <-pal[order(match(pal,dat_2$g))]
 # plot funnel with all conditional residuals
 metafor::funnel(Q2res$resid, sqrt(dat_2$var.g), level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal, back = "white", refline=0, legend=TRUE, xlab = "Conditional residual", ylab = "Standard error")
 ```
-Because this data set includes both the fitness and resistance effects it's not surprising that small studies are distributed on both sides of the funnel. This does not mean absence of publication bias as negative effects for fitness and positive effects for (-) resistance both would suggest that small studies tend to inflate the negative consequences of environmental stress. For the publication, I suggest we use -g for resistance effects (currently g = infection intensity or prevalence) and/or we use funnel plots for only dataset 1.
+Because this data set includes both the infectivity and fitness effects it's not surprising that small studies are distributed on both sides of the funnel. This does not mean absence of publication bias as negative effects for fitness and positive effects for (-) infectivity both would suggest that small studies tend to inflate the negative consequences of environmental stress. For the publication, I suggest we use -g for infectivity effects (currently g = infection intensity or prevalence) and/or we use funnel plots for only dataset 1.
 
 ### Two step approach to test for publication bias
 Following Nakagawa et al. (2021) we conduct a two-step approach to test for publication bias, that can be thought of as a modified Egger's test for multilevel meta analysis. First we include the effect sizes' standard error as the only moderator and including the same random effect structure as in our meta-analysis. If the slope of this moderator is significant, the estimated intercept provides a downwardly biased estimate of the overall meta-analytic effect (Doucouliagos 2012, 2014). In this case, we run a second meta regression with only the effect sizes' variances as moderators. The intercept in this case may still be biased, but less so.
@@ -1226,7 +1226,7 @@ forest.default(x= Q1.B$beta, sei =  Q1.B$se, pch = 19,
                xlab = "Standardised mean difference (Hedge's g)")
 ```
 
-#### Data set 2: resistance and fitness effects of environmental stress
+#### Data set 2: fitness and infectivity effects of environmental stress
 ```{r dat_2-twostep-1}
 # get standard errors of effect sizes 
 dat_2$sei <- sqrt(dat_2$var.g)
@@ -1274,8 +1274,8 @@ forest.default(x= Q2.B$beta, sei =  Q2.B$se, pch = 19,
                xlab = "Standardised mean difference (Hedge's g)")
 ```
 #### Contrasts
-Wald-type chi-square tests contrasting resistance vs fitness effects on infected hosts.
-```{r resistance vs fitness contrasts}
+Wald-type chi-square tests contrasting fitness vs infectivity effects on infected hosts.
+```{r fitness vs infectivity contrasts}
 # Environment
 # Prevalence vs Fecundity
 anova(Q2.B, X=c(0,-1,0,1,0,0,0,0,0,0,0,0,0))
