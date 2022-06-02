@@ -333,15 +333,6 @@ for(i in mort){
 }
 ```
 
-## Flip effect sizes for prevalence and intensity
-```{r flip-effect-infectivity}
-resist <- grep(pattern = "Intensity|Prevalence", x = dat$Trait.type)
-
-for(i in resist){
-  dat$g[i] <- -dat$g[i]
-}
-```
-
 # Prepare data
 Filter experiments with both epidemiological and infected demographic effects
 ```{r divide-datasets}
@@ -767,6 +758,7 @@ Q1_OP <-
     alpha = 0.7
   ) +
   scale_fill_manual(values = rep(pal[c(8,11,5)], each = 2)) + scale_colour_manual(values = rep(pal[c(8,11,5)], each = 2)) +
+  theme(legend.position = c(0.5, 0.1), axis.title = element_text(size = 15), axis.text.y = element_text(size = 15)) +
   scale_y_discrete(
     labels = c("EE:fecundity",
                "EE:survivorship",
@@ -892,44 +884,75 @@ Q2_OP <-
     angle = 0,
     alpha = 0.7
   ) +
+  theme(legend.position = c(0.3, 0.01), axis.title = element_text(size = 15), axis.text.y = element_text(size = 15)) +
   scale_fill_manual(values = rep(pal[c(7,8,10,11,5,4)], each = 2)) +
   scale_colour_manual(values = rep(pal[c(7,8,10,11,5,4)], each = 2)) +
   scale_y_discrete(labels = par_short)
 
 Q2_OP
 ```
+
 #### Contrasts
-Wald-type chi-square tests contrasting fitness vs infectivity effects on infected hosts.
+
+##### Absolute values for fitness and infectivity Hedge's g
+```{r absolute value of Hedges g}
+#absolute <- grep(pattern = "Fecundity|Survivorship|Intensity|Prevalence", x = dat_2$Trait.type)
+#for(i in absolute){
+#  dat_2$g[i] <- abs(dat_2$g[i])
+#}
+
+dat_2$absolute <- abs(dat_2$g)
+```
+
+##### Re-run model with absolute values
+```{r Q2 rerun abs}
+Q2.abs <-
+  rma.mv(
+    absolute ~ Trait.type:Gradient.category -1,
+    V = varcovmat_2_PD$mat,
+    random = list(~ 1 | Experiment,  ~ 1 | ID),
+    data = dat_2,
+    method = "REML",
+)
+
+summary(Q2.abs)
+forest.default(x= Q2.abs$beta, sei =  Q2.abs$se, ci.lb =  Q2.abs$ci.lb, ci.ub =  Q2.abs$ci.ub, 
+                annotate=TRUE, showweights=T, header=F,
+                slab = c("EE:prevalence", "EE:intensity","EE:fecundity", "EE:survivorship",
+               "CP:prevalence", "CP:intensity","CP:fecundity", "CP:survivorship",
+               "RL:prevalence", "RL:intensity","RL:fecundity","RL:survivorship"))
+```
+##### Wald-type chi-square tests contrasting fitness vs infectivity effects on infected hosts.
 ```{r fitness vs infectivity contrasts adjusted}
 # Environment
 # Prevalence vs Fecundity
-anova(Q2, X=c(-1,0,1,0,0,0,0,0,0,0,0,0))
+anova(Q2.abs, X=c(-1,0,1,0,0,0,0,0,0,0,0,0))
 # Prevalence vs Survivorship
-anova(Q2, X=c(-1,0,0,1,0,0,0,0,0,0,0,0))
+anova(Q2.abs, X=c(-1,0,0,1,0,0,0,0,0,0,0,0))
 # Intensity vs Fecundity
-anova(Q2, X=c(0,-1,1,0,0,0,0,0,0,0,0,0))
+anova(Q2.abs, X=c(0,-1,1,0,0,0,0,0,0,0,0,0))
 # Intensity vs Survivorship
-anova(Q2, X=c(0,-1,0,1,0,0,0,0,0,0,0,0))
+anova(Q2.abs, X=c(0,-1,0,1,0,0,0,0,0,0,0,0))
 
 # Pollution
 # Prevalence vs Fecundity
-anova(Q2, X=c(0,0,0,0,-1,0,1,0,0,0,0,0))
+anova(Q2.abs, X=c(0,0,0,0,-1,0,1,0,0,0,0,0))
 # Prevalence vs Survivorship
-anova(Q2, X=c(0,0,0,0,-1,0,0,1,0,0,0,0))
+anova(Q2.abs, X=c(0,0,0,0,-1,0,0,1,0,0,0,0))
 # Intensity vs Fecundity
-anova(Q2, X=c(0,0,0,0,0,-1,1,0,0,0,0,0))
+anova(Q2.abs, X=c(0,0,0,0,0,-1,1,0,0,0,0,0))
 # Intensity vs Survivorship
-anova(Q2, X=c(0,0,0,0,0,-1,0,1,0,0,0,0))
+anova(Q2.abs, X=c(0,0,0,0,0,-1,0,1,0,0,0,0))
 
 # Resources
 # Prevalence vs Fecundity
-anova(Q2, X=c(0,0,0,0,0,0,0,0,-1,0,1,0))
+anova(Q2.abs, X=c(0,0,0,0,0,0,0,0,-1,0,1,0))
 # Prevalence vs Survivorship
-anova(Q2, X=c(0,0,0,0,0,0,0,0,-1,0,0,1))
+anova(Q2.abs, X=c(0,0,0,0,0,0,0,0,-1,0,0,1))
 # Intensity vs Fecundity
-anova(Q2, X=c(0,0,0,0,0,0,0,0,0,-1,1,0))
+anova(Q2.abs, X=c(0,0,0,0,0,0,0,0,0,-1,1,0))
 # Intensity vs Survivorship
-anova(Q2, X=c(0,0,0,0,0,0,0,0,0,-1,0,1))
+anova(Q2.abs, X=c(0,0,0,0,0,0,0,0,0,-1,0,1))
 ```
 
 ```{r Q2 Results table}
@@ -1273,38 +1296,57 @@ forest.default(x= Q2.B$beta, sei =  Q2.B$se, pch = 19,
                 slab = c("variance","EE:prevalence", "EE:intensity", "EE:fecundity", "EE:survivorship", "CP:prevalence", "CP:intensity", "CP:fecundity", "CP:survivorship", "RL:prevalence", "RL:intensity", "RL:fecundity", "RL:survivorship"), 
                xlab = "Standardised mean difference (Hedge's g)")
 ```
+
 #### Contrasts
+
+##### Re-run model with absolute values
+```{r Q2.B rerunl}
+Q2.B.abs <-
+  rma.mv(
+    absolute ~ Trait.type:Gradient.category + var.g -1,
+    V = varcovmat_2_PD$mat,
+    random = list(~ 1 | Experiment,  ~ 1 | ID),
+    data = dat_2,
+    method = "REML",
+)
+
+summary(Q2.B.abs)
+forest.default(x= Q2.B.abs$beta, sei =  Q2.B.abs$se, pch = 19,
+                annotate=TRUE, showweights=F, header=c("Parameter", "Estimate [95% CI]"), 
+                slab = c("variance","EE:prevalence", "EE:intensity", "EE:fecundity", "EE:survivorship", "CP:prevalence", "CP:intensity", "CP:fecundity", "CP:survivorship", "RL:prevalence", "RL:intensity", "RL:fecundity", "RL:survivorship"), 
+               xlab = "Standardised mean difference (Hedge's g)")
+```
 Wald-type chi-square tests contrasting fitness vs infectivity effects on infected hosts.
 ```{r fitness vs infectivity contrasts}
 # Environment
 # Prevalence vs Fecundity
-anova(Q2.B, X=c(0,-1,0,1,0,0,0,0,0,0,0,0,0))
+anova(Q2.B.abs, X=c(0,-1,0,1,0,0,0,0,0,0,0,0,0))
 # Prevalence vs Survivorship
-anova(Q2.B, X=c(0,-1,0,0,1,0,0,0,0,0,0,0,0))
+anova(Q2.B.abs, X=c(0,-1,0,0,1,0,0,0,0,0,0,0,0))
 # Intensity vs Fecundity
-anova(Q2.B, X=c(0,0,-1,1,0,0,0,0,0,0,0,0,0))
+anova(Q2.B.abs, X=c(0,0,-1,1,0,0,0,0,0,0,0,0,0))
 # Intensity vs Survivorship
-anova(Q2.B, X=c(0,0,-1,0,1,0,0,0,0,0,0,0,0))
+anova(Q2.B.abs, X=c(0,0,-1,0,1,0,0,0,0,0,0,0,0))
 
 # Pollution
 # Prevalence vs Fecundity
-anova(Q2.B, X=c(0,0,0,0,0,-1,0,1,0,0,0,0,0))
+anova(Q2.B.abs, X=c(0,0,0,0,0,-1,0,1,0,0,0,0,0))
 # Prevalence vs Survivorship
-anova(Q2.B, X=c(0,0,0,0,0,-1,0,0,1,0,0,0,0))
+anova(Q2.B.abs, X=c(0,0,0,0,0,-1,0,0,1,0,0,0,0))
 # Intensity vs Fecundity
-anova(Q2.B, X=c(0,0,0,0,0,0,-1,1,0,0,0,0,0))
+anova(Q2.B.abs, X=c(0,0,0,0,0,0,-1,1,0,0,0,0,0))
 # Intensity vs Survivorship
-anova(Q2.B, X=c(0,0,0,0,0,0,-1,0,1,0,0,0,0))
+anova(Q2.B.abs, X=c(0,0,0,0,0,0,-1,0,1,0,0,0,0))
 
 # Resources
 # Prevalence vs Fecundity
-anova(Q2.B, X=c(0,0,0,0,0,0,0,0,0,-1,0,1,0))
+anova(Q2.B.abs, X=c(0,0,0,0,0,0,0,0,0,-1,0,1,0))
 # Prevalence vs Survivorship
-anova(Q2.B, X=c(0,0,0,0,0,0,0,0,0,-1,0,0,1))
+anova(Q2.B.abs, X=c(0,0,0,0,0,0,0,0,0,-1,0,0,1))
 # Intensity vs Fecundity
-anova(Q2.B, X=c(0,0,0,0,0,0,0,0,0,0,-1,1,0))
+anova(Q2.B.abs, X=c(0,0,0,0,0,0,0,0,0,0,-1,1,0))
 # Intensity vs Survivorship
-anova(Q2.B, X=c(0,0,0,0,0,0,0,0,0,0,-1,0,1))
+anova(Q2.B.abs, X=c(0,0,0,0,0,0,0,0,0,0,-1,0,1))
 ```
 
 #### Supporting Tables
