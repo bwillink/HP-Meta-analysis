@@ -16,7 +16,7 @@ Load packages
 ```{r load-packages, message=FALSE, results='hide'}
 x <-
   c(
-    "metafor", "kableExtra", "Matrix", "dplyr", "wesanderson", "weightr", "ggplot2", "MuMIn", "RColorBrewer", "tidyverse", "patchwork", "devtools", "R.rsp")
+    "metafor", "kableExtra", "Matrix", "dplyr", "wesanderson", "weightr", "ggplot2", "MuMIn", "RColorBrewer", "tidyverse", "patchwork", "devtools", "R.rsp", "orchaRd")
 
 lapply(x, function(y) {
   # check if installed, if not install
@@ -27,9 +27,7 @@ lapply(x, function(y) {
   try(require(y, character.only = T), silent = T)
 })
 
-#devtools::install_github("itchyshin/orchard_plot", subdir = "orchaRd", force = TRUE, build_vignettes = TRUE)
-library(orchaRd)
-
+#remotes::install_github("itchyshin/orchard_plot", subdir = "orchaRd", force = TRUE, build_vignettes = TRUE)
 ```
 
 Read in data
@@ -669,6 +667,7 @@ Q1.f_OP <-
     alpha = 0.7
   ) +
   scale_fill_manual(values = rep(pal, each = 2)) + scale_colour_manual(values = rep(pal, each = 2)) +
+  theme(legend.position = c(0.25, 0.01), axis.title = element_text(size = 15), axis.text.y = element_text(size = 15)) +
   scale_y_discrete(
     labels = c(
       "Infected:EE:fecund",
@@ -758,7 +757,7 @@ Q1_OP <-
     alpha = 0.7
   ) +
   scale_fill_manual(values = rep(pal[c(8,11,5)], each = 2)) + scale_colour_manual(values = rep(pal[c(8,11,5)], each = 2)) +
-  theme(legend.position = c(0.5, 0.1), axis.title = element_text(size = 15), axis.text.y = element_text(size = 15)) +
+  theme(legend.position = c(0.25, 0.01), axis.title = element_text(size = 15), axis.text.y = element_text(size = 15)) +
   scale_y_discrete(
     labels = c("EE:fecundity",
                "EE:survivorship",
@@ -769,6 +768,7 @@ Q1_OP <-
 
 Q1_OP
 ```
+
 #### RVE
 We check if our results are qualitatively similar if we use the robust variance estimator instead of the var-covar matrix for effects estimated in the same experiment.
 
@@ -892,9 +892,70 @@ Q2_OP <-
 Q2_OP
 ```
 
-#### Contrasts
+### Contrasts
 
-##### Absolute values for fitness and infectivity Hedge's g
+#### Flipped values for fitness and infectivity Hedge's g
+```{r flip-sign-infectivity}
+dat_2$flipped <- dat_2$g
+flip <- grep(pattern = "Intensity|Prevalence", x = dat_2$Trait.type)
+for(i in flip){
+  dat_2$flipped[i] <- -dat_2$flipped[i]
+}
+```
+
+##### Re-run model with flipped values
+```{r Q2 rerun flipped}
+Q2.flip <-
+  rma.mv(
+    flipped ~ Trait.type:Gradient.category -1,
+    V = varcovmat_2_PD$mat,
+    random = list(~ 1 | Experiment,  ~ 1 | ID),
+    data = dat_2,
+    method = "REML",
+)
+
+summary(Q2.flip)
+forest.default(x= Q2.flip$beta, sei =  Q2.flip$se, ci.lb =  Q2.flip$ci.lb, ci.ub =  Q2.flip$ci.ub, 
+                annotate=TRUE, showweights=T, header=F,
+                slab = c("EE:prevalence", "EE:intensity","EE:fecundity", "EE:survivorship",
+               "CP:prevalence", "CP:intensity","CP:fecundity", "CP:survivorship",
+               "RL:prevalence", "RL:intensity","RL:fecundity","RL:survivorship"))
+```
+
+##### Wald-type chi-square tests contrasting fitness vs infectivity effects on infected hosts with flipped values.
+```{r fitness vs infectivity contrasts flipped}
+# Environment
+# Prevalence vs Fecundity
+anova(Q2.flip, X=c(-1,0,1,0,0,0,0,0,0,0,0,0))
+# Prevalence vs Survivorship
+anova(Q2.flip, X=c(-1,0,0,1,0,0,0,0,0,0,0,0))
+# Intensity vs Fecundity
+anova(Q2.flip, X=c(0,-1,1,0,0,0,0,0,0,0,0,0))
+# Intensity vs Survivorship
+anova(Q2.flip, X=c(0,-1,0,1,0,0,0,0,0,0,0,0))
+
+# Pollution
+# Prevalence vs Fecundity
+anova(Q2.flip, X=c(0,0,0,0,-1,0,1,0,0,0,0,0))
+# Prevalence vs Survivorship
+anova(Q2.flip, X=c(0,0,0,0,-1,0,0,1,0,0,0,0))
+# Intensity vs Fecundity
+anova(Q2.flip, X=c(0,0,0,0,0,-1,1,0,0,0,0,0))
+# Intensity vs Survivorship
+anova(Q2.flip, X=c(0,0,0,0,0,-1,0,1,0,0,0,0))
+
+# Resources
+# Prevalence vs Fecundity
+anova(Q2.flip, X=c(0,0,0,0,0,0,0,0,-1,0,1,0))
+# Prevalence vs Survivorship
+anova(Q2.flip, X=c(0,0,0,0,0,0,0,0,-1,0,0,1))
+# Intensity vs Fecundity
+anova(Q2.flip, X=c(0,0,0,0,0,0,0,0,0,-1,1,0))
+# Intensity vs Survivorship
+anova(Q2.flip, X=c(0,0,0,0,0,0,0,0,0,-1,0,1))
+```
+
+#### Absolute values for fitness and infectivity Hedge's g
 ```{r absolute value of Hedges g}
 #absolute <- grep(pattern = "Fecundity|Survivorship|Intensity|Prevalence", x = dat_2$Trait.type)
 #for(i in absolute){
@@ -922,6 +983,7 @@ forest.default(x= Q2.abs$beta, sei =  Q2.abs$se, ci.lb =  Q2.abs$ci.lb, ci.ub = 
                "CP:prevalence", "CP:intensity","CP:fecundity", "CP:survivorship",
                "RL:prevalence", "RL:intensity","RL:fecundity","RL:survivorship"))
 ```
+
 ##### Wald-type chi-square tests contrasting fitness vs infectivity effects on infected hosts.
 ```{r fitness vs infectivity contrasts adjusted}
 # Environment
@@ -1009,7 +1071,7 @@ Table3 %>%
   kable_material(c("striped", "hover"), full_width = F)
 ```
 
-#### RVE
+### RVE
 We check if our results are qualitatively similar if we use the robust variance estimator instead of the var-covar matrix for effects estimated in the same experiment.
 
 ```{r Q2 best RVE}
