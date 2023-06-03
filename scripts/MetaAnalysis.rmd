@@ -1468,3 +1468,33 @@ TableS5 %>%
   kbl() %>%
   kable_material(c("striped", "hover"), full_width = T)
 ```
+
+# R1
+Here we conduct analyses suggested by reviewers.
+
+## Question 1.R1 - Do infected and uninfected hosts differ in fitness?
+We'll address this question in the control condition (i.e. in the absence of stressors)
+
+### Re arrange data
+```{r rearrange fitness data}
+# columns to keep
+keepers <- c( "ID", "Study", "Experiment", "Entered.by", "Host", "Host.type", "Parasite", "Parasite.type", "Study.type", "Trait", "Trait.type", "Statistics", "Level_C", "N_C", "Mean_C", "Variation_C", "Lwr_C", "Upr_C", "Success_C", "Variation.Type")
+
+# data for uninfected hosts
+dat_U <- dat[dat$Trait.category == "Uninfected demographic", keepers]
+
+# change "Control" to "Uninfected"
+colnames(dat_U) <- gsub("_C", "_U", colnames(dat_U))
+
+# data for infected hosts
+dat_I <- dat[dat$Trait.category == "Infected demographic", keepers]
+
+# change "Control" to "Infected"
+colnames(dat_I) <- gsub("_C", "_I", colnames(dat_I))
+
+# merge data sets
+dat_UI <- left_join(dat_U, dat_I, multiple = "all", by = c("Study", "Experiment", "Entered.by", "Host", "Host.type", "Parasite", "Parasite.type", "Study.type", "Trait", "Trait.type", "Statistics", "Variation.Type"))
+
+```
+
+
