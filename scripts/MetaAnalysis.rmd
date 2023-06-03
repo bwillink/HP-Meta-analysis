@@ -1746,15 +1746,15 @@ Neg_eigen_UI %>%
 
 ```{r var-covar-matrix Uninfected vs infected}
 
-# exclude suspicious studies with negative eigenvalues and which alread raised flags in the main analysis
+# exclude suspicious studies with negative eigenvalues and which already raised flags in the main analysis
 dat_UI <- dat_UI[-grep("Ashraf et al. 2017 Environ Sci Pollut Res", dat_UI$Study),]
 dat_UI <- dat_UI[-grep("Civitello et al. 2020. Proc B", dat_UI$Study),]
 
 # I'm also excluding Hall et al. as they also had too negative eigen values
 dat_UI <- dat_UI[-grep("Hall et al. 2013. Oecologia", dat_UI$Study),]
+dat_UI <- dat_UI[-grep("Manzi et al. 2019. Freshwater Biology", dat_UI$Study),]
+		
 	
-
-
 varcovmat_UI = matrix(0, nrow = dim(dat_UI)[1], ncol = dim(dat_UI)[1])
 
 for (i in 1:dim(dat_UI)[1]) {
@@ -1769,4 +1769,47 @@ for (i in 1:dim(dat_UI)[1]) {
 
 # correct negative eigens in the few studies with large covar to var ratios
 varcovmat_UI_PD <- nearPD(varcovmat_UI,  keepDiag = TRUE)
+```
+
+### Model without moderators
+We fit the model to test whether infection reduces fitness (fecundity or survivorship)
+```{r Q1 full model, message=FALSE}
+Q1.R1.f <-
+  rma.mv(
+    g ~ Trait.type -1,
+    V = varcovmat_UI_PD$mat,
+    random = list(~ 1 | Experiment,  ~ 1 | ID.x),
+    data = dat_UI,
+    method = "REML"
+  )
+
+pal <- RColorBrewer::brewer.pal(6,"Spectral")
+
+Q1.R1.f_OP <-
+  orchard_plot(
+    Q1.R1.f,
+    xlab = "Standardised mean difference (Hedge's g)",
+    transfm = "none",
+    angle = 0,
+    alpha = 0.7
+  ) +
+  scale_fill_manual(values = rep(pal, each = 2)) + scale_colour_manual(values = rep(pal, each = 2)) +
+  theme(legend.position = c(0.25, 0.01), axis.title = element_text(size = 15), axis.text.y = element_text(size = 15)) +
+  scale_y_discrete(
+    labels = c(
+      "Fecundity",
+      "Survivorship"
+    )
+  )
+
+Q1.R1.f_OP
+```
+### Forest  plot
+
+```{r Q1 Best model}
+summary(Q1.R1.f)
+
+forest.default(x= Q1.R1.f$beta, sei =  Q1.R1.f$se, ci.lb =  Q1.R1.f$ci.lb, ci.ub =  Q1.R1.f$ci.ub, 
+                annotate=TRUE, showweights=T, header=F,
+                slab = c("Fecundity", "Survivorship"))
 ```
