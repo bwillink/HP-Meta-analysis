@@ -1493,8 +1493,206 @@ dat_I <- dat[dat$Trait.category == "Infected demographic", keepers]
 colnames(dat_I) <- gsub("_C", "_I", colnames(dat_I))
 
 # merge data sets
-dat_UI <- left_join(dat_U, dat_I, multiple = "all", by = c("Study", "Experiment", "Entered.by", "Host", "Host.type", "Parasite", "Parasite.type", "Study.type", "Trait", "Trait.type", "Statistics", "Variation.Type"))
+dat_UI <- left_join(dat_U, dat_I, multiple = "all", by = c("Study", "Experiment", "Entered.by", "Host", "Host.type", "Parasite", "Parasite.type", "Study.type", "Trait.type", "Statistics", "Variation.Type"))
 
+# remove experiments without infected data
+dat_UI <- dat_UI[!is.na(dat_UI$Level_I),]
+
+# how many effects
+nrow(dat_UI)
 ```
 
+### Calculate OR and approximate variance from contingency tables
+```{r OR Uninfected vs Infected}
+N <- nrow(dat_UI)
 
+for (i in 1:N) {
+  # no correction need if none of the categories are 0
+  if (dat_UI$Variation.Type[i] == "OR" &
+      dat_UI$Success_U[i] > 0 &
+      dat_UI$Success_I[i] > 0 &
+      (dat_UI$N_U[i] - dat_UI$Success_U[i]) > 0 &
+      (dat_UI$N_I[i] - dat_UI$Success_I[i]) > 0) {
+    dat_UI$OR[i] <-
+      (dat_UI$Success_I[i] * (dat_UI$N_U[i] - dat_UI$Success_U[i])) / (dat_UI$Success_U[i] * (dat_UI$N_I[i] - dat_UI$Success_I[i]))
+    dat_UI$Log.OR[i] <- log(dat_UI$OR[i])
+    # approximate variance
+    dat_UI$Log.OR.v[i] <-
+      1 / dat_UI$Success_I[i] + 1 / (dat_UI$N_I[i] - dat_UI$Success_I[i]) + 1 / dat_UI$Success_U[i] + 1 / (dat_UI$N_U[i] - dat_UI$Success_U[i])
+  }
+  else {
+    # if at least one category is 0, we apply Yate's correction to avoid dividing by 0
+    if (dat_UI$Variation.Type[i] == "OR" &
+        (dat_UI$Success_U[i] == 0 |
+        dat_UI$Success_I[i] == 0 |
+        (dat_UI$N_U[i] - dat_UI$Success_U[i]) == 0 |
+        (dat_UI$N_I[i] - dat_UI$Success_I[i]) == 0)) {
+      dat_UI$OR[i] <-
+        ((dat_UI$Success_I[i] + 0.5) * (dat_UI$N_U[i] - dat_UI$Success_U[i] + 0.5)) / ((dat_UI$Success_U[i] + 0.5) * (dat_UI$N_I[i] - dat_UI$Success_I[i] + 0.5))
+      dat_UI$Log.OR[i] <- log(dat_UI$OR[i])
+      # approximate variance
+      dat_UI$Log.OR.v[i] <-
+        1 / (dat_UI$Success_I[i] + 0.5)  + 1 / (dat_UI$N_I[i] - dat_UI$Success_I[i] + 0.5) + 1 / (dat_UI$Success_U[i] + 0.5) + 1 / (dat_UI$N_U[i] - dat_UI$Success_U[i] + 0.5)
+    }
+    else{
+      # if there is no OR dat_UIa, make these columns NA
+      dat_UI$OR[i] <- NA
+      dat_UI$Log.OR[i] <- NA
+      dat_UI$Log.OR.v[i] <- NA
+    }
+  }
+}
+```
+
+### Calculate SD for comparisons with continuous normally distributed variables
+```{r SD Uninfected vs Infected}
+# create SD variables
+dat_UI$SD_U <- vector(length = N)
+dat_UI$SD_I <- vector(length = N)
+
+for (i in 1:N) {
+  # Calculate SD if SE is reported
+  if (dat_UI$Variation.Type[i] == "SE") {
+    dat_UI$SD_U[i] <- dat_UI$Variation_U[i] * sqrt(dat_UI$N_U[i])
+    dat_UI$SD_I[i] <- dat_UI$Variation_I[i] * sqrt(dat_UI$N_I[i])
+  } else {
+    # calculate SD if a 95% confidence interval for a normal distribution is reported
+    # this also applies to the Wald confidence interval for proportions, as it is a normal approximation to the binomial
+    if (dat_UI$Variation.Type[i] == "CI" |
+        dat_UI$Variation.Type[i] == "Wald CI") {
+      # calculate SE from lower and upper limits
+      temp_U1 <- (dat_UI$Upr_U[i] - dat_UI$Mean_U[i]) / 1.96
+      temp_U2 <- (dat_UI$Mean_U[i] - dat_UI$Lwr_U[i]) / 1.96
+      
+      temp_I1 <- (dat_UI$Upr_I[i] - dat_UI$Mean_I[i]) / 1.96
+      temp_I2 <- (dat_UI$Mean_I[i] - dat_UI$Lwr_I[i]) / 1.96
+      
+      # average digitized/recorded values of SE (because we have two) and transform to SD
+      dat_UI$SD_U[i] <-
+        mean(abs(c(temp_U1, temp_U2))) * sqrt(dat_UI$N_U[i])
+      dat_UI$SD_I[i] <-
+        mean(abs(c(temp_U1, temp_U2))) * sqrt(dat_UI$N_I[i])
+    } else {
+      # approximate SD if IQ range is reported
+      if (dat_UI$Variation.Type[i] == "IQ") {
+        dat_UI$SD_U[i] <- (dat_UI$Upr_U[i] - dat_UI$Lwr_U[i]) / 1.35
+        dat_UI$SD_I[i] <- (dat_UI$Upr_I[i] - dat_UI$Lwr_I[i]) / 1.35
+      }
+      else {
+        # if SD is reported leave as such
+        if (dat_UI$Variation.Type[i] == "SD") {
+          dat_UI$SD_U[i] <- dat_UI$Variation_U[i]
+          dat_UI$SD_I[i] <- dat_UI$Variation_I[i]
+        } else {
+          # if there is no appropriate dat_UIa, make these columns NA
+          dat_UI$SD_U[i] <- NA
+          dat_UI$SD_I[i] <- NA
+        }
+      }
+    }
+  }
+}
+```
+
+### Get effect sizes and variances
+```{r calculate d Uninfected vs Infected}
+# within groups standard deviation
+dat_UI$S_within <-
+  sqrt(((dat_UI$N_U - 1) * dat_UI$SD_U ^ 2 + (dat_UI$N_I - 1) * dat_UI$SD_I ^ 2) / (dat_UI$N_U + dat_UI$N_I - 2))
+
+# standardized effect size
+for (i in 1:N) {
+  # standardized mean difference
+  # we can't include data without variance
+  if (is.na(dat_UI$S_within[i]) == FALSE & dat_UI$S_within[i] > 0) {
+    dat_UI$d[i] <- (dat_UI$Mean_I[i] - dat_UI$Mean_U[i]) / dat_UI$S_within[i]
+    dat_UI$var.d[i] <-
+      (dat_UI$N_U[i] + dat_UI$N_I[i]) / (dat_UI$N_U[i] * dat_UI$N_I[i]) + (dat_UI$d[i] ^ 2) /
+      (2 * (dat_UI$N_U[i] + dat_UI$N_I[i]))
+  }
+  else{
+    # if only F statistic is reported - no cases of this yet!
+    if (dat_UI$Variation.Type[i] == "F_I") {
+      dat_UI$d[i] <-
+        sqrt(dat_UI$F_I[i] * (dat_UI$N_I[i] + dat_UI$N_U[i]) / (dat_UI$N_U[i] * dat_UI$N_I[i]))
+      dat_UI$var.d[i] <-
+        (dat_UI$N_U[i] + dat_UI$N_I[i]) / (dat_UI$N_U[i] * dat_UI$N_I[i]) + (dat_UI$d[i] ^ 2) /
+        (2 * (dat_UI$N_U[i] + dat_UI$N_I[i]))
+      
+    } else{
+      # if Z and N are reported for a regression analysis
+      if (dat_UI$Variation.Type[i] == "Z_reg") {
+        r <- dat_UI$Z_I[i] / sqrt(dat_UI$Z_N[i])
+        dat_UI$d[i] <- (2 * r) / (sqrt(1 - r ^ 2))
+        Vr <- (1 - r ^ 2) ^ 2 / (dat_UI$Z_N[i] - 1)
+        dat_UI$var.d[i] <- (4 * Vr) / (1 - r ^ 2) ^ 3
+      }
+      else{
+        # if t and N are reported for a regression analysis
+        if (dat_UI$Variation.Type[i] == "t") {
+          r <- sqrt((dat_UI$Z_I[i] ^ 2) / (dat_UI$Z_I[i] ^ 2 + dat_UI$Z_df[i]))
+          dat_UI$d[i] <- (2 * r) / (sqrt(1 - r ^ 2))
+          Vr <- (1 - r ^ 2) ^ 2 / (dat_UI$R_N[i] - 1)
+          dat_UI$var.d[i] <- (4 * Vr) / (1 - r ^ 2) ^ 3
+        }
+        else{
+          # If Z is reported from a comparison of two independent groups
+          if (dat_UI$Variation.Type[i] == "Z") {
+            dat_UI$d[i] <-
+              sqrt(abs(dat_UI$Z_I[i]) * sqrt(dat_UI$N_U[i] + dat_UI$N_I[i]) / (1 - sqrt(
+                dat_UI$Z_I[i] ^ 2 * (dat_UI$N_U[i] + dat_UI$N_I[i]) ^ -1
+              )))
+            dat_UI$var.d[i] <-
+              (dat_UI$N_U[i] + dat_UI$N_I[i]) / (dat_UI$N_U[i] * dat_UI$N_I[i]) + (dat_UI$d[i] ^ 2) /
+              (2 * (dat_UI$N_U[i] + dat_UI$N_I[i]))
+          }
+          else{
+            # converting log OR
+            if (is.na(dat_UI$Log.OR.v[i]) == FALSE &
+                dat_UI$Log.OR.v[i] > 0) {
+              dat_UI$d[i] <- dat_UI$Log.OR[i] * (sqrt(3) / pi)
+              dat_UI$var.d[i] <- dat_UI$Log.OR.v[i] * 3 / pi ^ 2
+            } else {
+              # for now, leave other types of effects as NA
+              dat_UI$d[i] <- NA
+              dat_UI$var.d[i] <- NA
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+## Correct for sample size and get g
+```{r calculate g Uninfected vs Infected}
+# sample size correction factor
+for (i in 1:N) {
+  # if odds ratio or comparison between means
+  if (is.na(dat_UI$N_U[i]) == F) {
+    dat_UI$J[i] <- 1 - 3 / (4 * (dat_UI$N_U[i] + dat_UI$N_I[i] - 2) - 1)
+  } else {
+    # if correlation
+    if (is.na(dat_UI$R_N[i]) == F) {
+      dat_UI$J[i] <- 1 - 3 / (4 * (dat_UI$R_N[i] - 2) - 1)
+    }else {
+      dat_UI$J[i] <- NA
+    }
+  }
+}
+# corrected effect size
+dat_UI$g <- dat_UI$J * dat_UI$d
+
+# and variance
+dat_UI$var.g <- (dat_UI$J ^ 2) * dat_UI$var.d
+```
+
+### Flip effect sizes for remaining mortality effects
+```{r standardize-survival Uninfected vs Infected}
+mort <- grep(pattern = "[M,m]ort", x = dat_UI$Trait)
+
+for(i in mort){
+  dat_UI$g[i] <- -dat_UI$g[i]
+}
+```
