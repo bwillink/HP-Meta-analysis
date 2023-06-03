@@ -1686,6 +1686,9 @@ dat_UI$g <- dat_UI$J * dat_UI$d
 
 # and variance
 dat_UI$var.g <- (dat_UI$J ^ 2) * dat_UI$var.d
+
+# remove studies without variance for which g had been set to NA
+dat_UI <- dat_UI[!is.na(dat_UI$g),]
 ```
 
 ### Flip effect sizes for remaining mortality effects
@@ -1695,4 +1698,75 @@ mort <- grep(pattern = "[M,m]ort", x = dat_UI$Trait)
 for(i in mort){
   dat_UI$g[i] <- -dat_UI$g[i]
 }
+```
+
+### Identify negative eigenvalues
+As in our main analysis, we find out which studies have negative eigenvalues in their variance-covar matrix. This means covariance between treatment effects with the same control is larger than variance and it's an indicator of suspiciously low variance and potentially an incorrectly reported N or an error while digitizing data.
+
+```{r check-var-covar dat_UI}
+studies_1 <- unique(dat_UI$Study)
+studies_to_Uheck <- c()
+negative_eigen <- c()
+
+for (k in studies_1) {
+  dat_study <- dat_UI[which(dat_UI$Study == k),]
+  varcovmat = matrix(0,
+                     nrow = dim(dat_study)[1],
+                     ncol = dim(dat_study)[1])
+  
+  for (i in 1:dim(dat_study)[1]) {
+    for (j in 1:dim(dat_study)[1]) {
+      if (i == j) {
+        varcovmat[i, j] = dat_study$var.g[i]
+      } else{
+        if (dat_study[i, "Experiment"] == dat_study[j, "Experiment"] &
+            dat_study[i, "Level_U"] == dat_study[j, "Level_U"]) {
+          varcovmat[i, j] = 1 / dat_study[i, "N_U"] + dat_study$g[i] * dat_study$g[j] /
+            (dat_study[i, "N_U"] + dat_study[i, "N_I"] + dat_study[j, "N_I"])
+        }
+      }
+    }
+  }
+  
+  val <- eigen(varcovmat)
+  for (m in 1:length(val$values)) {
+    if (val$values[m] < 0) {
+    studies_to_Uheck <- append(studies_to_Uheck, k)
+    negative_eigen <- append(negative_eigen, val$values[m])
+    }
+  }
+}
+    
+Neg_eigen_UI <- data.frame(study = studies_to_Uheck, eigen = negative_eigen)
+
+Neg_eigen_UI %>%
+  kbl() %>%
+  kable_material(c("striped", "hover"), full_width = F)
+```
+
+```{r var-covar-matrix Uninfected vs infected}
+
+# exclude suspicious studies with negative eigenvalues and which alread raised flags in the main analysis
+dat_UI <- dat_UI[-grep("Ashraf et al. 2017 Environ Sci Pollut Res", dat_UI$Study),]
+dat_UI <- dat_UI[-grep("Civitello et al. 2020. Proc B", dat_UI$Study),]
+
+# I'm also excluding Hall et al. as they also had too negative eigen values
+dat_UI <- dat_UI[-grep("Hall et al. 2013. Oecologia", dat_UI$Study),]
+	
+
+
+varcovmat_UI = matrix(0, nrow = dim(dat_UI)[1], ncol = dim(dat_UI)[1])
+
+for (i in 1:dim(dat_UI)[1]) {
+  for (j in 1:dim(dat_UI)[1]) {
+    if (i == j) {varcovmat_UI[i,j] = dat_UI$var.g[i]}else{
+      if (dat_UI[i, "Experiment"] == dat_UI[j, "Experiment"] & dat_UI[i, "Level_U"] == dat_UI[j, "Level_U"]) {
+        varcovmat_UI[i,j] = 1/dat_UI[i,"N_U"] + dat_UI$g[i]*dat_UI$g[j]/(dat_UI[i,"N_U"] + dat_UI[i,"N_I"] + dat_UI[j,"N_I"]) 
+      }
+    }
+  }
+}
+
+# correct negative eigens in the few studies with large covar to var ratios
+varcovmat_UI_PD <- nearPD(varcovmat_UI,  keepDiag = TRUE)
 ```
