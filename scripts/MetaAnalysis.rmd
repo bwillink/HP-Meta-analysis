@@ -32,7 +32,7 @@ lapply(x, function(y) {
 
 Read in data
 ```{r read-data}
-dat <- read.csv("../data/MA_dat_08-05-2021.csv", header = T, sep = ",")
+dat <- read.csv("../data/MA_dat_06-19-2023.csv", header = T, sep = ",")
 
 # subset data that have a "variation type". We'll parse based on variation type below
 #dat <- dat[-which(is.na(dat$Variation.Type) == TRUE),]
@@ -1689,11 +1689,14 @@ dat_UI$var.g <- (dat_UI$J ^ 2) * dat_UI$var.d
 
 # remove studies without variance for which g had been set to NA
 dat_UI <- dat_UI[!is.na(dat_UI$g),]
+
+# remove duplicated rows which were created whenever controls were used more than once in main analysis.
+dat_UI <- dat_UI[!duplicated(dat_UI[,-c(1,21)]), ]
 ```
 
 ### Flip effect sizes for remaining mortality effects
 ```{r standardize-survival Uninfected vs Infected}
-mort <- grep(pattern = "[M,m]ort", x = dat_UI$Trait)
+mort <- grep(pattern = "[M,m]ort", x = dat_UI$Trait.x)
 
 for(i in mort){
   dat_UI$g[i] <- -dat_UI$g[i]
