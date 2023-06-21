@@ -42,7 +42,6 @@ colnames(dat)
 ```
 
 # Data cleaning
-*There might be more of this coming...*
 
 ## Gradient categories 
 ```{r}
@@ -70,7 +69,9 @@ levels(as.factor(dat$X_gradient[dat$Gradient.category == "Resource"]))
 ```
 
 
-## Transmission mode (R1 suggestion to discuss and/or include as moderator)
+## Transmission mode 
+Following R1 suggestion to discuss and/or include as moderator.
+
 ```{r}
 for (i in 1:nrow(dat)) {
   if (is.na(dat$Environmental_stage[i]) == F &
@@ -622,21 +623,21 @@ for(i in 2:nrow(final_dat)){
 }
 length(unique(k))
 
-# how many species per taxonomic groups
-length(unique(final_dat$Host[final_dat$Host.type == "Arthropod"]))
-length(unique(final_dat$Host[final_dat$Host.type == "Mollusc"]))
-length(unique(final_dat$Host[final_dat$Host.type == "Fish"]))
-length(unique(final_dat$Host[final_dat$Host.type == "Amphibian"]))
-length(unique(final_dat$Host[final_dat$Host.type == "Reptile"]))
-length(unique(final_dat$Host[final_dat$Host.type == "Bird"]))
-length(unique(final_dat$Host[final_dat$Host.type == "Mammal"]))
+# how many host species per taxonomic groups
+Host_count <- final_dat %>% group_by(Host.type) %>%
+  summarise(N_taxa = length(unique(Host)))
 
-length(unique(final_dat$Parasite[final_dat$Parasite.type == "Bacteria"]))
-length(unique(final_dat$Parasite[final_dat$Parasite.type == "Fungus"]))
-length(unique(final_dat$Parasite[final_dat$Parasite.type == "Helminth"]))
-length(unique(final_dat$Parasite[final_dat$Parasite.type == "Myxozoa"]))
-length(unique(final_dat$Parasite[final_dat$Parasite.type == "Protozoan"]))
-length(unique(final_dat$Parasite[final_dat$Parasite.type == "Virus"]))
+Host_count %>%
+  kbl() %>%
+  kable_material(c("striped", "hover"), full_width = F)
+
+# how many parasite taxa per taxonomic groups
+Par_count <- final_dat %>% group_by(Parasite.type) %>%
+  summarise(N_taxa = length(unique(Parasite)))
+
+Par_count %>%
+  kbl() %>%
+  kable_material(c("striped", "hover"), full_width = F)
 ```
 
 # Analysis
@@ -662,12 +663,12 @@ model_selection.1 <- dredge(full_model.1, trace = 2)
 subset(model_selection.1, delta <= 10, recalc.weights = FALSE)
 
 # relative importance values for the predictors can be obtained with:
-importance(model_selection.1)
+sw(model_selection.1)
 ```
 
 ### Full Model
 We fit the full model to show there is no effect of infection status
-```{r Q1 full model, message=FALSE}
+```{r Q1 full model, message=FALSE, fig.width=16, fig.height=12}
 Q1.f <-
   rma.mv(
     g ~ Trait.category:Trait.type:Gradient.category -1,
@@ -766,7 +767,7 @@ Table2 %>%
 
 Make Figure 2 with the results of the best model for Q1
 
-```{r Q1 best Orchard Plot}
+```{r Q1 best Orchard Plot, fig.width=16, fig.height=12}
 pal <- RColorBrewer::brewer.pal(11,"Spectral")
 
 Q1_OP <-
@@ -830,9 +831,9 @@ model_selection.2 <- dredge(full_model.2, trace = 2)
 subset(model_selection.2, delta <= 10, recalc.weights = FALSE)
 
 # relative importance values for the predictors can be obtained with:
-importance(model_selection.2)
+sw(model_selection.2)
 ```
-
+<!---
 #### Merge Pollution and Environmental stressors 
 ```{r}
 full_model.2.merged <- rma.mv(
@@ -851,6 +852,7 @@ subset(model_selection.2.merged, delta <= 10, recalc.weights = FALSE)
 importance(model_selection.2.merged)
 
 ```
+--->
 
 #### Fitness versus infectivity traits 
 ```{r}
@@ -867,8 +869,7 @@ model_selection.2.rvf <- dredge(full_model.2.rvf, trace = 2)
 subset(model_selection.2.rvf, delta <= 10, recalc.weights = FALSE)
 
 # relative importance values for the predictors can be obtained with:
-importance(model_selection.2.rvf)
-
+sw(model_selection.2.rvf)
 ```
 
 ### Best model: Trait type x Gradient category interaction (lowest AICc)
@@ -890,7 +891,7 @@ forest.default(x= Q2$beta, sei =  Q2$se, ci.lb =  Q2$ci.lb, ci.ub =  Q2$ci.ub,
                "RL:prevalence", "RL:intensity","RL:fecundity","RL:survivorship"))
 ```
 
-```{r Q2 best Orchard Plot}
+```{r Q2 best Orchard Plot, fig.width=16, fig.height=12}
 par_short <- c("EE:prevalence", "EE:intensity","EE:fecundity", "EE:survivorship",
                "CP:prevalence", "CP:intensity","CP:fecundity", "CP:survivorship",
                "RL:prevalence", "RL:intensity","RL:fecundity","RL:survivorship")
@@ -2042,7 +2043,7 @@ forest.default(
 )
 ```
 
-```{r Q2.R1 best Orchard Plot}
+```{r Q2.R1 best Orchard Plot, fig.width=16, fig.height=12}
 par_short <- c("AQ:EE:prevalence",
     "TE:EE:prevalence",
     "AQ:EE:intensity",
@@ -2085,6 +2086,7 @@ Q2.R1_OP <-
 
 Q2.R1_OP
 ```
+
 Make Table with results from Q2.R1
 
 ```{r Q2.R1 Results table}
