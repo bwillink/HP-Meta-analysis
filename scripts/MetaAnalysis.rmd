@@ -32,7 +32,7 @@ lapply(x, function(y) {
 
 Read in data
 ```{r read-data}
-dat <- read.csv("../data/MA_dat_20_06_2023.csv", header = T, sep = ",")
+dat <- read.csv("../data/MA_dat-21-06-2023.csv", header = T, sep = ",")
 
 # subset data that have a "variation type". We'll parse based on variation type below
 #dat <- dat[-which(is.na(dat$Variation.Type) == TRUE),]
@@ -1275,6 +1275,7 @@ pal <-pal[order(match(pal,dat_2$g))]
 # plot funnel with all conditional residuals
 metafor::funnel(Q2res$resid, sqrt(dat_2$var.g), level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal, back = "white", refline=0, legend=TRUE, xlab = "Conditional residual", ylab = "Standard error")
 ```
+
 Because this data set includes both the infectivity and fitness effects it's not surprising that small studies are distributed on both sides of the funnel. This does not mean absence of publication bias as negative effects for fitness and positive effects for (-) infectivity both would suggest that small studies tend to inflate the negative consequences of environmental stress. For the publication, I suggest we use -g for infectivity effects (currently g = infection intensity or prevalence) and/or we use funnel plots for only dataset 1.
 
 ### Two step approach to test for publication bias
