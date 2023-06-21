@@ -32,7 +32,7 @@ lapply(x, function(y) {
 
 Read in data
 ```{r read-data}
-dat <- read.csv("../data/MA_dat_06-19-2023.csv", header = T, sep = ",")
+dat <- read.csv("../data/MA_dat_20_06_2023.csv", header = T, sep = ",")
 
 # subset data that have a "variation type". We'll parse based on variation type below
 #dat <- dat[-which(is.na(dat$Variation.Type) == TRUE),]
@@ -67,6 +67,26 @@ levels(as.factor(dat$X_gradient[dat$Gradient.category == "Environment"]))
 
 # Check resource limitation experiments are actual resources
 levels(as.factor(dat$X_gradient[dat$Gradient.category == "Resource"]))
+```
+
+
+## Transmission mode (R1 suggestion to discuss and/or include as moderator)
+```{r}
+for (i in 1:nrow(dat)) {
+  if (is.na(dat$Environmental_stage[i]) == F &
+      is.na(dat$Vector_transmitted[i]) == F  &
+      is.na(dat$Require_intermediate_host[i]) == F) {
+    if (dat$Environmental_stage[i] == "Present" |
+        dat$Vector_transmitted[i] == "Yes" |
+        dat$Require_intermediate_host[i] == "Yes") {
+      dat$Tansmission[i] <- "Indirect"
+    } else {
+      dat$Tansmission[i] <- "Direct"
+    }
+  } else {
+    dat$Tansmission[i] <- NA
+  }
+}
 ```
 
 ## Median, min, max and n to mean and SD
@@ -226,7 +246,6 @@ for (i in 1:N) {
 }
 ```
 
-
 ## Get effect sizes and variances
 ```{r calculate d}
 # within groups standard deviation
@@ -297,7 +316,6 @@ for (i in 1:N) {
   }
 }
 ```
-
 
 ## Correct for sample size and get g
 ```{r calculate g}
@@ -418,7 +436,6 @@ Neg_eigen_1 %>%
   kable_material(c("striped", "hover"), full_width = F)
 ```
 
-
 For data set 2
 ```{r check-var-covar_2}
 studies_2 <- unique(dat_2$Study)
@@ -533,6 +550,7 @@ dat_2 <- mutate(dat_2, Host.type.2 = case_when(
 
 ```
 
+<!---
 Create a new column collapsing pollution and environmental stress into one "Environment" category
 ```{r pollution/environment stress category}
 dat_1 <- mutate(dat_1, Gradient.category.2 = case_when(
@@ -546,6 +564,8 @@ dat_2 <- mutate(dat_2, Gradient.category.2 = case_when(
   Gradient.category == "Resource" ~ "Resource"))
 
 ```
+
+--->
 
 # Numbers mentioned in the methods
 The Methods section describes various features of the data, indicating the number of studies/effects with those features. Numbers are calculated here. 
@@ -623,6 +643,7 @@ length(unique(final_dat$Parasite[final_dat$Parasite.type == "Virus"]))
 
 ## Question 1 - Is there a differencial response to stressors between infected and uninfected host?
 ### Model selection
+
 ```{r Model selection Q1}
 # First, we evaluate some code that generates helper functions needed so that metafor and MuMIn could interact as necessary
 eval(metafor:::.MuMIn)
@@ -656,7 +677,7 @@ Q1.f <-
     method = "REML"
   )
 
-pal <- RColorBrewer::brewer.pal(6,"Spectral")
+pal <- RColorBrewer::brewer.pal(9,"Spectral")
 
 Q1.f_OP <-
   orchard_plot(
@@ -1472,8 +1493,8 @@ TableS5 %>%
 # R1
 Here we conduct analyses suggested by reviewers.
 
-## Question 1.R1 - Do infected and uninfected hosts differ in fitness?
-We'll address this question in the control condition (i.e. in the absence of stressors)
+## Comment 1.R1 - Do infected and uninfected hosts differ in fitness?
+We'll address this question by Reviewer 1 in the control condition (i.e. in the absence of stressors)
 
 ### Re arrange data
 ```{r rearrange fitness data}
@@ -1776,8 +1797,8 @@ varcovmat_UI_PD <- nearPD(varcovmat_UI,  keepDiag = TRUE)
 
 ### Model without moderators
 We fit the model to test whether infection reduces fitness (fecundity or survivorship)
-```{r Q1 full model, message=FALSE}
-Q1.R1.f <-
+```{r Q0.R1 full model, message=FALSE}
+Q0.R1.f <-
   rma.mv(
     g ~ Trait.type -1,
     V = varcovmat_UI_PD$mat,
@@ -1788,9 +1809,9 @@ Q1.R1.f <-
 
 pal <- RColorBrewer::brewer.pal(6,"Spectral")
 
-Q1.R1.f_OP <-
+Q0.R1.f_OP <-
   orchard_plot(
-    Q1.R1.f,
+    Q0.R1.f,
     xlab = "Standardised mean difference (Hedge's g)",
     transfm = "none",
     angle = 0,
@@ -1805,14 +1826,332 @@ Q1.R1.f_OP <-
     )
   )
 
-Q1.R1.f_OP
+Q0.R1.f_OP
 ```
+
 ### Forest  plot
+```{r Q0.R1 Best model}
+summary(Q0.R1.f)
 
-```{r Q1 Best model}
-summary(Q1.R1.f)
-
-forest.default(x= Q1.R1.f$beta, sei =  Q1.R1.f$se, ci.lb =  Q1.R1.f$ci.lb, ci.ub =  Q1.R1.f$ci.ub, 
+forest.default(x= Q0.R1.f$beta, sei =  Q0.R1.f$se, ci.lb =  Q0.R1.f$ci.lb, ci.ub =  Q0.R1.f$ci.ub, 
                 annotate=TRUE, showweights=T, header=F,
                 slab = c("Fecundity", "Survivorship"))
+```
+
+
+## Comment 2.R1 - Do aquatic and terrestrial systems differ in their responses to stressors?
+
+To address this question by Reviewer 2, we'll add an 'Environment' moderator to the final models in Q1 and Q2, presented in the main text. The results of these models are presented in the Supporting Material.
+
+### Q1: Best Model + Environment
+
+Effects in survival and fecundity under different types of stress and in aquatic vs terrestrial habitats, combining infected and uninfected.
+
+```{r Q1.R1 Best model}
+Q1.R1 <-
+  rma.mv(
+    g ~ Environment:Trait.type:Gradient.category -1 ,
+    V = varcovmat_1_PD$mat,
+    random = list( ~ 1 | Experiment, ~ 1 | ID),
+    data = dat_1,
+    method = "REML"
+  )
+
+summary(Q1.R1)
+
+forest.default(
+  x = Q1.R1$beta,
+  sei =  Q1.R1$se,
+  ci.lb =  Q1.R1$ci.lb,
+  ci.ub =  Q1.R1$ci.ub,
+  annotate = TRUE,
+  showweights = T,
+  header = F,
+  slab = c(
+    "Aquatic environment fecundity",
+    "Aquatic environment survivorship",
+    "Terrestrial environment survivorship",
+    "Aquatic pollution  fecundity",
+    "Aquatic pollution survivorship",
+    "Terrestrial pollution  survivorship",
+    "Aquatic resource  fecundity",
+    "Terrestrial resource  fecundity",
+    "Aquatic resource survivorship"
+  )
+)
+```
+```{r Q1.R1 best Orchard Plot}
+pal <- RColorBrewer::brewer.pal(11,"Spectral")
+
+Q1.R1_OP <-
+  orchard_plot(
+    Q1.R1,
+    xlab = "Standardised mean difference (Hedge's g)",
+    transfm = "none",
+    angle = 0,
+    alpha = 0.7
+  ) +
+  scale_fill_manual(values = pal[c(7,8,8,10,11,11,5,5,4)]) +
+  scale_colour_manual(values = pal[c(7,8,8,10,11,11,5,5,4)]) +
+  theme(legend.position = c(0.25, 0.01), axis.title = element_text(size = 15), axis.text.y = element_text(size = 15)) +
+  scale_y_discrete(
+    labels = c("AQ:EE:fecundity",
+               "AQ:EE:survivorship",
+               "TE:EE:survivorship",
+               "AQ:CP:fecundity",
+               "AQ:CP:survivorship",
+               "TE:CP:survivorship",
+               "AQ:RL:fecundity",
+               "TE:RL:fecundity",
+               "AQ:RL:survivorship"))
+
+Q1.R1_OP
+```
+Make Table with results from Q1.R1
+
+```{r Q1.R1 Results table}
+
+TableQ1.R1 <-
+  data.frame(
+    Environment = c(
+      "Aquatic",
+      "Aquatic",
+      "Terrestrial",
+      "Aquatic",
+      "Aquatic",
+      "Terrestrial",
+      "Aquatic",
+      "Terrestrial",
+      "Aquatic"
+    ),
+    Gradient.category = rep(
+      c(
+        "Environment",
+        "Pollution",
+        "Resource"
+      ),
+      each = 3
+    ),
+    Trait.type = c(
+      "Fecundity",
+      "Survivorship",
+      "Survivorship",
+      "Fecundity",
+      "Survivorship",
+      "Survivorship",
+      "Fecundity",
+      "Fecundity",
+      "Survivorship"
+    ),
+    Overall_mean = round(Q1.R1$beta, 3),
+    Lower_95 = round(Q1.R1$ci.lb, 3),
+    Upper_95 = round(Q1.R1$ci.ub, 3),
+    P_value = round(Q1.R1$pval, 3))
+
+N_effects <- dat_1 %>% group_by(Environment, Gradient.category, Trait.type) %>% summarise(N_effects = length(ID))
+N_experiments <- dat_1 %>% group_by(Environment, Gradient.category, Trait.type) %>% summarise(N_experiments = length(unique(Experiment)))
+N_hosts <- dat_1 %>% group_by(Environment, Gradient.category, Trait.type) %>% summarise(N_hosts = length(unique(Host)))
+
+TableQ1.R1 <-
+  left_join(TableQ1.R1, N_effects) %>% left_join(N_experiments) %>%   left_join(N_experiments) %>%
+  dplyr::rename(Stressor_type = Gradient.category,
+                Response_trait = Trait.type) %>%
+  mutate(Stressor_type = plyr::revalue(
+    Stressor_type,
+    c(
+      "Environment" = "Endogenous Environment",
+      "Pollution" = "Chemical Pollution",
+      "Resource" = "Resource Limitation"
+    )
+  ))
+
+rownames(TableQ1.R1) <- NULL
+
+TableQ1.R1 %>%
+  kbl() %>%
+  kable_material(c("striped", "hover"), full_width = F)
+```
+
+Does accounting for the transmission environment reduce heterogeneity?
+We calculate I2 using the formula above from Nakagawa and Santos (2012) for the model without the var-covar matrix.
+
+```{r  dat_1-Env-I2-RVE}
+Q1.R1.R <-
+  rma.mv(
+    g ~ Environment:Trait.type:Gradient.category -1 ,
+    V = dat_1$var.g,
+    random = list( ~ 1 | Experiment, ~ 1 | ID),
+    data = dat_1,
+    method = "REML"
+  )
+I2.Q1.R1 <- I2(Q1.R1.R, v = dat_1$var.g, obs = "ID")*100
+I2.Q1.R1
+```
+
+### Q2: Best Model + Environment
+
+Trait type x Gradient category x Transmission environment interaction
+
+```{r Q2.R1 best model}
+Q2.R1 <-
+  rma.mv(
+    g ~ Environment:Trait.type:Gradient.category -1,
+    V = varcovmat_2_PD$mat,
+    random = list(~ 1 | Experiment,  ~ 1 | ID),
+    data = dat_2,
+    method = "REML",
+)
+
+summary(Q2.R1)
+
+forest.default(
+  x = Q2.R1$beta,
+  sei =  Q2.R1$se,
+  ci.lb =  Q2.R1$ci.lb,
+  ci.ub =  Q2.R1$ci.ub,
+  annotate = TRUE,
+  showweights = T,
+  header = F,
+  slab = c(
+    "AQ:EE:prevalence",
+    "TE:EE:prevalence",
+    "AQ:EE:intensity",
+    "TE:EE:intensity",
+    "AQ:EE:fecundity",
+    "TE:EE:fecundity",
+    "AQ:EE:survivorship",
+    "TE:EE:survivorship",
+    "AQ:CP:prevalence",
+    "TE:CP:prevalence",
+    "AQ:CP:intensity",
+    "TE:CP:intensity",
+    "AQ:CP:fecundity",
+    "TE:CP:fecundity",
+    "AQ:CP:survivorship",
+    "TE:CP:survivorship",
+    "AQ:RL:prevalence",
+    "TE:RL:prevalence",
+    "AQ:RL:intensity",
+    "TE:RL:intensity",
+    "AQ:RL:fecundity",
+    "TE:RL:fecundity",
+    "AQ:RL:survivorship",
+    "TE:RL:survivorship"
+  )
+)
+```
+
+```{r Q2.R1 best Orchard Plot}
+par_short <- c("AQ:EE:prevalence",
+    "TE:EE:prevalence",
+    "AQ:EE:intensity",
+    "TE:EE:intensity",
+    "AQ:EE:fecundity",
+    "TE:EE:fecundity",
+    "AQ:EE:survivorship",
+    "TE:EE:survivorship",
+    "AQ:CP:prevalence",
+    "TE:CP:prevalence",
+    "AQ:CP:intensity",
+    "TE:CP:intensity",
+    "AQ:CP:fecundity",
+    "TE:CP:fecundity",
+    "AQ:CP:survivorship",
+    "TE:CP:survivorship",
+    "AQ:RL:prevalence",
+    "TE:RL:prevalence",
+    "AQ:RL:intensity",
+    "TE:RL:intensity",
+    "AQ:RL:fecundity",
+    "TE:RL:fecundity",
+    "AQ:RL:survivorship",
+    "TE:RL:survivorship")
+
+pal <- RColorBrewer::brewer.pal(11,"Spectral")
+
+Q2.R1_OP <-
+  orchard_plot(
+    Q2.R1,
+    xlab = "Standardised mean difference (Hedge's g)",
+    transfm = "none",
+    angle = 0,
+    alpha = 0.7
+  ) +
+  theme(legend.position = c(0.3, 0.01), axis.title = element_text(size = 15), axis.text.y = element_text(size = 15)) +
+  scale_fill_manual(values = rep(pal[c(7,8,10,11,5,4)], each = 4)) +
+  scale_colour_manual(values = rep(pal[c(7,8,10,11,5,4)], each = 4)) +
+  scale_y_discrete(labels = par_short)
+
+Q2.R1_OP
+```
+Make Table with results from Q2.R1
+
+```{r Q2.R1 Results table}
+
+TableQ2.R1 <-
+  data.frame(
+    Environment = rep(c(
+      "Aquatic",
+      "Terrestrial"), 12),
+    Gradient.category = rep(
+      c(
+        "Environment",
+        "Pollution",
+        "Resource"
+      ),
+      each = 8
+    ),
+    Trait.type = rep(c(
+      "Prevalence",
+      "Prevalence",
+      "Intensity",
+      "Intensity",
+      "Fecundity",
+      "Fecundity",
+      "Survivorship",
+      "Survivorship"), 3
+    ),
+    Overall_mean = round(Q2.R1$beta, 3),
+    Lower_95 = round(Q2.R1$ci.lb, 3),
+    Upper_95 = round(Q2.R1$ci.ub, 3),
+    P_value = round(Q2.R1$pval, 3))
+
+N_effects <- dat_2 %>% group_by(Environment, Gradient.category, Trait.type) %>% summarise(N_effects = length(ID))
+N_experiments <- dat_2 %>% group_by(Environment, Gradient.category, Trait.type) %>% summarise(N_experiments = length(unique(Experiment)))
+N_hosts <- dat_2 %>% group_by(Environment, Gradient.category, Trait.type) %>% summarise(N_hosts = length(unique(Host)))
+
+TableQ2.R1 <-
+  left_join(TableQ2.R1, N_effects) %>% left_join(N_experiments) %>%   left_join(N_experiments) %>%
+  dplyr::rename(Stressor_type = Gradient.category,
+                Response_trait = Trait.type) %>%
+  mutate(Stressor_type = plyr::revalue(
+    Stressor_type,
+    c(
+      "Environment" = "Endogenous Environment",
+      "Pollution" = "Chemical Pollution",
+      "Resource" = "Resource Limitation"
+    )
+  ))
+
+rownames(TableQ2.R1) <- NULL
+
+TableQ2.R1 %>%
+  kbl() %>%
+  kable_material(c("striped", "hover"), full_width = F)
+```
+
+Does accounting for the transmission environment reduce heterogeneity?
+We calculate I2 using the formula above from Nakagawa and Santos (2012) for the model without the var-covar matrix.
+
+```{r  dat_2-Env-I2-RVE}
+Q2.R1.R <-
+  rma.mv(
+    g ~ Environment:Trait.type:Gradient.category -1 ,
+    V = dat_2$var.g,
+    random = list( ~ 1 | Experiment, ~ 1 | ID),
+    data = dat_2,
+    method = "REML"
+  )
+I2.Q2.R1 <- I2(Q2.R1.R, v = dat_1$var.g, obs = "ID")*100
+I2.Q2.R1
 ```
