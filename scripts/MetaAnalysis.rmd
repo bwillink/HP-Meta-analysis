@@ -32,7 +32,7 @@ lapply(x, function(y) {
 
 Read in data
 ```{r read-data}
-dat <- read.csv("../data/MA_dat-21-06-2023.csv", header = T, sep = ",")
+dat <- read.csv("../data/MA_dat_17-07-2023.csv", header = T, sep = ",")
 
 # subset data that have a "variation type". We'll parse based on variation type below
 #dat <- dat[-which(is.na(dat$Variation.Type) == TRUE),]
@@ -80,12 +80,12 @@ for (i in 1:nrow(dat)) {
     if (dat$Environmental_stage[i] == "Present" |
         dat$Vector_transmitted[i] == "Yes" |
         dat$Require_intermediate_host[i] == "Yes") {
-      dat$Tansmission[i] <- "Indirect"
+      dat$Transmission[i] <- "Indirect"
     } else {
-      dat$Tansmission[i] <- "Direct"
+      dat$Transmission[i] <- "Direct"
     }
   } else {
-    dat$Tansmission[i] <- NA
+    dat$Transmission[i] <- NA
   }
 }
 ```
@@ -925,7 +925,7 @@ for(i in flip){
 }
 ```
 
-##### Re-run model with flipped values
+##### Re-run model with flipped g values
 ```{r Q2 rerun flipped}
 Q2.flip <-
   rma.mv(
@@ -1223,7 +1223,7 @@ The most common way to assess publication bias is to test whether studies with l
 ### Funnel plots
 A very common way to assess publication bias is therefore to check whether studies with low precision generally have larger effects. The typical way to visualize this is through a funnel plot with all effects. Now, this is not entirely correct for us, as the effects are not independent. Nakagawa et al 2021 (Methods Ecol Evol) suggest using conditional residuals for funnel plots. These residual plots take some of the non-independence into account, but are not perfect, as they assume: 1)sampling SE(sei) does not covary with moderators in meta-regression, 2) sampling SE is the same as the SE of the residuals and 3) sampling variances are not correlated. This last one is most certainly incorrect.
 
-Estimation of conditional residuals is not available to rma.mv objects (which can include a sampling variance-covariance matrix). The available alternative is to ignore this covariation in sampling variance for the assessment of publication bias. This is a caveat that should be acknowledgend in the paper, yet I think it is a useful visualization nonetheless. To do these funnel plots I re-fit the best model as rma.uni for each data set. While not ideal, this the best current alternative suggested by Nakagawa et al 2021 (Methods Ecol Evol)
+Estimation of conditional residuals is not available to rma.mv objects (which can include a sampling variance-covariance matrix). The available alternative is to ignore this covariation in sampling variance for the assessment of publication bias. This is a caveat that should be acknowledged in the paper, yet I think it is a useful visualization nonetheless. To do these funnel plots I re-fit the best model as rma.uni for each data set. While not ideal, this the best current alternative suggested by Nakagawa et al 2021 (Methods Ecol Evol)
 
 **Note** I checked some previous studies that use multilevel regression models as we do here, to see what they do about publication bias. Sauer et al 2020 Ecology (101) acknowledged this problem and decided not to even show funnel plots: "Because of the complex non independence among effect sizes within a study (e.g., some studies had multiple effect sizes), we did not use funnel plots or rank correlation tests to assess publication bias (Lau et al. 2006, Civitello et al.2015)." Others (Yates et al. 2019 Environmental DNA (1); Salerno et al 2021 Global Change Biology (27); Brlik et al. 2020 JAE) acknowledge this problem, but still show funnel plots warning caution. They also conduct a version of Eggerts test somewhat in the same spirit as I do below.
 
@@ -1233,7 +1233,7 @@ Estimation of conditional residuals is not available to rma.mv objects (which ca
 # any fitting method other than "FE" works for a random/mixed effects model
 Q1.uni <-
   rma.uni(
-    g ~ Trait.type:Gradient.category + Experiment + ID ,
+    g ~ Trait.type:Gradient.category + Experiment,
     vi = dat_1$var.g,
     data = dat_1,
     method = "REML"
@@ -1259,7 +1259,7 @@ We can see that as SE increases (e.g ~ 1) all studies report large negative fitn
 # any fitting method other than "FE" works for a random/mixed effects model
 Q2.uni <-
   rma.uni(
-    g ~ Trait.type:Gradient.category + Experiment + ID,
+    g ~ Trait.type:Gradient.category + Experiment,
     vi = dat_2$var.g,
     data = dat_2,
     method = "REML"
@@ -1347,6 +1347,8 @@ d2s1 <- rma.mv(
   data = dat_2,
   method = "REML"
 )
+
+d2s1
 ```
 
 As in data set 1, effects of small studies are dominated by negative effect sizes. Because the slope of sei is significant the variance is a better moderator for the overall effect.
@@ -1401,6 +1403,7 @@ forest.default(x= Q2.B.abs$beta, sei =  Q2.B.abs$se, pch = 19,
                 slab = c("variance","EE:prevalence", "EE:intensity", "EE:fecundity", "EE:survivorship", "CP:prevalence", "CP:intensity", "CP:fecundity", "CP:survivorship", "RL:prevalence", "RL:intensity", "RL:fecundity", "RL:survivorship"), 
                xlab = "Standardised mean difference (Hedge's g)")
 ```
+
 Wald-type chi-square tests contrasting fitness vs infectivity effects on infected hosts.
 ```{r fitness vs infectivity contrasts}
 # Environment
@@ -1776,7 +1779,7 @@ Neg_eigen_UI %>%
 dat_UI <- dat_UI[-grep("Ashraf et al. 2017 Environ Sci Pollut Res", dat_UI$Study),]
 dat_UI <- dat_UI[-grep("Civitello et al. 2020. Proc B", dat_UI$Study),]
 
-# I'm also excluding Hall et al. as they also had too negative eigen values
+# I'm also excluding Hall et al. and Manzi et al. as they also had too negative eigen values
 dat_UI <- dat_UI[-grep("Hall et al. 2013. Oecologia", dat_UI$Study),]
 dat_UI <- dat_UI[-grep("Manzi et al. 2019. Freshwater Biology", dat_UI$Study),]
 		
@@ -1840,6 +1843,27 @@ forest.default(x= Q0.R1.f$beta, sei =  Q0.R1.f$se, ci.lb =  Q0.R1.f$ci.lb, ci.ub
                 slab = c("Fecundity", "Survivorship"))
 ```
 
+### RVE
+We check if our results are qualitatively similar if we use the robust variance estimator instead of the var-covar matrix for effects estimated in the same experiment.
+
+```{r Q2 best RVE}
+Q0.R1.R <-
+  rma.mv(
+    g ~ Trait.type -1,
+    V = dat_UI$var.g,
+    random = list(~ 1 | Experiment,  ~ 1 | ID.x),
+    data = dat_UI,
+    method = "REML",
+)
+
+
+Q0.R1.R_est <- clubSandwich::coef_test(Q0.R1.R, vcov = "CR2")
+
+forest.default(x= Q0.R1.R_est$beta, sei =  Q0.R1.R_est$SE, pch = 19,
+                annotate=TRUE, showweights=F, header=c("Parameter", "Estimate [95% CI]"), 
+                slab = c("Fecundity", "Survivorship"), 
+               xlab = "Standardised mean difference (Hedge's g)")
+```
 
 ## Comment 2.R1 - Do aquatic and terrestrial systems differ in their responses to stressors?
 
@@ -1870,15 +1894,15 @@ forest.default(
   showweights = T,
   header = F,
   slab = c(
-    "Aquatic environment fecundity",
-    "Aquatic environment survivorship",
-    "Terrestrial environment survivorship",
-    "Aquatic pollution  fecundity",
-    "Aquatic pollution survivorship",
-    "Terrestrial pollution  survivorship",
-    "Aquatic resource  fecundity",
-    "Terrestrial resource  fecundity",
-    "Aquatic resource survivorship"
+    "Aquatic:EE:fecundity",
+    "Aquatic:EE:survivorship",
+    "Terrestrial:EE:survivorship",
+    "Aquatic:CP:fecundity",
+    "Aquatic:CP:survivorship",
+    "Terrestrial:CP:survivorship",
+    "Aquatic:RL:fecundity",
+    "Terrestrial:RL:fecundity",
+    "Aquatic:RL:survivorship"
   )
 )
 ```
@@ -1989,6 +2013,8 @@ Q1.R1.R <-
 I2.Q1.R1 <- I2(Q1.R1.R, v = dat_1$var.g, obs = "ID")*100
 I2.Q1.R1
 ```
+
+Not really...
 
 ### Q2: Best Model + Environment
 
@@ -2157,4 +2183,353 @@ Q2.R1.R <-
   )
 I2.Q2.R1 <- I2(Q2.R1.R, v = dat_1$var.g, obs = "ID")*100
 I2.Q2.R1
+```
+
+## Comment 3.R1 - Does transmission mode (direct or indirect) affect host responses to stressors?
+
+To address this question by Reviewer 2, we'll add a 'Transmission mode' moderator to the final models in Q1 and Q2, presented in the main text. The results of these models are presented in the Supporting Material.
+
+### Q1: Best Model + Transmission
+
+Effects in survival and fecundity under different types of stress and for pathogens with direct vs indirect transmission, combining infected and uninfected.
+
+```{r Q1.R1.2 Best model}
+Q1.R1.2 <-
+  rma.mv(
+    g ~ Transmission:Trait.type:Gradient.category -1 ,
+    V = varcovmat_1_PD$mat,
+    random = list( ~ 1 | Experiment, ~ 1 | ID),
+    data = dat_1,
+    method = "REML"
+  )
+
+summary(Q1.R1.2)
+
+forest.default(
+  x = Q1.R1.2$beta,
+  sei =  Q1.R1.2$se,
+  ci.lb =  Q1.R1.2$ci.lb,
+  ci.ub =  Q1.R1.2$ci.ub,
+  annotate = TRUE,
+  showweights = T,
+  header = F,
+  slab = c(
+    "Indirect:EE:fecundity",
+    "Direct:EE:survivorship",
+    "Indirect:EE:survivorship",
+    "Indirect:CP:fecundity",
+    "Direct:CP:survivorship",
+    "Indirect:CP:survivorship",
+    "Direct:RL:fecundity",
+    "Indirect:RL:fecundity",
+    "Direct:RL:survivorship",
+    "Indirect:RL:survivorship"
+    
+  )
+)
+```
+
+```{r Q1.R1.2 best Orchard Plot}
+pal <- RColorBrewer::brewer.pal(11,"Spectral")
+
+Q1.R1.2_OP <-
+  orchard_plot(
+    Q1.R1.2,
+    xlab = "Standardised mean difference (Hedge's g)",
+    transfm = "none",
+    angle = 0,
+    alpha = 0.7
+  ) +
+  scale_fill_manual(values = pal[c(7,8,8,10,11,11,5,5,4,4)]) +
+  scale_colour_manual(values = pal[c(7,8,8,10,11,11,5,5,4,4)]) +
+  theme(legend.position = c(0.25, 0.01), axis.title = element_text(size = 15), axis.text.y = element_text(size = 15)) +
+  scale_y_discrete(
+    labels = c("Indirect:EE:fecundity",
+               "Direct:EE:survivorship",
+               "Indirect:EE:survivorship",
+               "Indirect:CP:fecundity",
+               "Direct:CP:survivorship",
+               "Indirect:CP:survivorship",
+               "Direct:RL:fecundity",
+               "Indirect:RL:fecundity",
+               "Direct:RL:survivorship",
+               "Indirect:RL:survivorship"))
+
+Q1.R1.2_OP
+```
+
+Make Table with results from Q1.R1.2
+
+```{r Q1.R1.2 Results table}
+
+TableQ1.R1.2 <-
+  data.frame(
+    Environment = c(
+      "Indirect",
+      "Direct",
+      "Indirect",
+      "Indirect",
+      "Direct",
+      "Indirect",
+      "Direct",
+      "Indirect",
+      "Direct",
+      "Indirect"
+    ),
+    Gradient.category = c(rep(
+      c(
+        "Environment",
+        "Pollution",
+        "Resource"
+      ),
+      each = 3
+    ), "Resource"),
+    Trait.type = c(
+      "Fecundity",
+      "Survivorship",
+      "Survivorship",
+      "Fecundity",
+      "Survivorship",
+      "Survivorship",
+      "Fecundity",
+      "Fecundity",
+      "Survivorship",
+      "Survivorship"
+    ),
+    Overall_mean = round(Q1.R1.2$beta, 3),
+    Lower_95 = round(Q1.R1.2$ci.lb, 3),
+    Upper_95 = round(Q1.R1.2$ci.ub, 3),
+    P_value = round(Q1.R1.2$pval, 3))
+
+N_effects <- dat_1 %>% group_by(Transmission, Gradient.category, Trait.type) %>% summarise(N_effects = length(ID))
+N_experiments <- dat_1 %>% group_by(Transmission, Gradient.category, Trait.type) %>% summarise(N_experiments = length(unique(Transmission)))
+N_hosts <- dat_1 %>% group_by(Transimission, Gradient.category, Trait.type) %>% summarise(N_hosts = length(unique(Host)))
+
+TableQ1.R1.2 <-
+  left_join(TableQ1.R1.2, N_effects) %>% left_join(N_experiments) %>%   left_join(N_experiments) %>%
+  dplyr::rename(Stressor_type = Gradient.category,
+                Response_trait = Trait.type) %>%
+  mutate(Stressor_type = plyr::revalue(
+    Stressor_type,
+    c(
+      "Environment" = "Endogenous Environment",
+      "Pollution" = "Chemical Pollution",
+      "Resource" = "Resource Limitation"
+    )
+  ))
+
+rownames(TableQ1.R1.2) <- NULL
+
+TableQ1.R1.2 %>%
+  kbl() %>%
+  kable_material(c("striped", "hover"), full_width = F)
+```
+
+Does accounting for the transmission mode reduce heterogeneity?
+We calculate I2 using the formula above from Nakagawa and Santos (2012) for the model without the var-covar matrix.
+
+```{r  dat_1-Env-I2.2-RVE}
+Q1.R1.2.R <-
+  rma.mv(
+    g ~ Transmission:Trait.type:Gradient.category -1 ,
+    V = dat_1$var.g,
+    random = list( ~ 1 | Experiment, ~ 1 | ID),
+    data = dat_1,
+    method = "REML"
+  )
+I2.Q1.R1.2 <- I2(Q1.R1.2.R, v = dat_1$var.g, obs = "ID")*100
+I2.Q1.R1.2
+```
+
+### Q2: Best Model + Transmission
+
+Trait type x Gradient category x Transmission mode interaction
+
+```{r Q2.R1.2 best model}
+Q2.R1.2 <-
+  rma.mv(
+    g ~ Transmission:Trait.type:Gradient.category -1,
+    V = varcovmat_2_PD$mat,
+    random = list(~ 1 | Experiment,  ~ 1 | ID),
+    data = dat_2,
+    method = "REML",
+)
+
+summary(Q2.R1.2)
+
+forest.default(
+  x = Q2.R1.2$beta,
+  sei =  Q2.R1.2$se,
+  ci.lb =  Q2.R1.2$ci.lb,
+  ci.ub =  Q2.R1.2$ci.ub,
+  annotate = TRUE,
+  showweights = T,
+  header = F,
+  slab = c(
+    "Direct:EE:prevalence",
+    "Indirect:EE:prevalence",
+    "Direct:EE:intensity",
+    "Indirect:EE:intensity",
+    "Indirect:EE:fecundity",
+    "Direct:EE:survivorship",
+    "Indirect:EE:survivorship",
+    "Direct:CP:prevalence",
+    "Indirect:CP:prevalence",
+    "Direct:CP:intensity",
+    "Indirect:CP:intensity",
+    "Indirect:CP:fecundity",
+    "Direct:CP:survivorship",
+    "Indirect:CP:survivorship",
+    "Direct:RL:prevalence",
+    "Indirect:RL:prevalence",
+    "Direct:RL:intensity",
+    "Indirect:RL:intensity",
+    "Direct:RL:fecundity",
+    "Indirect:RL:fecundity",
+    "Direct:RL:survivorship",
+    "Indirect:RL:survivorship"
+  )
+)
+```
+
+```{r Q2.R1 best Orchard Plot, fig.width=16, fig.height=12}
+par_short <- c("Direct:EE:prevalence",
+    "Indirect:EE:prevalence",
+    "Direct:EE:intensity",
+    "Indirect:EE:intensity",
+    "Indirect:EE:fecundity",
+    "Direct:EE:survivorship",
+    "Indirect:EE:survivorship",
+    "Direct:CP:prevalence",
+    "Indirect:CP:prevalence",
+    "Direct:CP:intensity",
+    "Indirect:CP:intensity",
+    "Indirect:CP:fecundity",
+    "Direct:CP:survivorship",
+    "Indirect:CP:survivorship",
+    "Direct:RL:prevalence",
+    "Indirect:RL:prevalence",
+    "Direct:RL:intensity",
+    "Indirect:RL:intensity",
+    "Direct:RL:fecundity",
+    "Indirect:RL:fecundity",
+    "Direct:RL:survivorship",
+    "Indirect:RL:survivorship")
+
+pal <- RColorBrewer::brewer.pal(11,"Spectral")
+pal <- pal[c(7,7,7,7,8,8,8,10,10,10,10,11,11,11,5,5,5,5,4,4,4,4)]
+
+Q2.R1.2_OP <-
+  orchard_plot(
+    Q2.R1.2,
+    xlab = "Standardised mean difference (Hedge's g)",
+    transfm = "none",
+    angle = 0,
+    alpha = 0.7
+  ) +
+  theme(legend.position = c(0.3, 0.01), axis.title = element_text(size = 15), axis.text.y = element_text(size = 15)) +
+  scale_fill_manual(values = pal) +
+  scale_colour_manual(values = pal) +
+  scale_y_discrete(labels = par_short)
+
+Q2.R1.2_OP
+```
+
+Make Table with results from Q2.R1
+
+```{r Q2.R1.2 Results table}
+
+TableQ2.R1.2 <-
+  data.frame(
+    Transmission = c(
+      "Direct",
+      "Indirect",
+       "Direct",
+      "Indirect",
+      "Indirect",
+       "Direct",
+      "Indirect",
+      "Direct",
+      "Indirect",
+       "Direct",
+      "Indirect",
+      "Indirect",
+       "Direct",
+      "Indirect",
+      "Direct",
+      "Indirect",
+      "Direct",
+      "Indirect",
+      "Direct",
+      "Indirect",
+       "Direct",
+      "Indirect"
+    ),
+    Gradient.category = c(rep(
+      c(
+        "Environment",
+        "Pollution",
+        "Resource"
+      ),
+      each = 7
+    ), "Resource"),
+    Trait.type = c(rep(c(
+      "Prevalence",
+      "Prevalence",
+      "Intensity",
+      "Intensity",
+      "Fecundity",
+      "Survivorship",
+      "Survivorship"), 2
+    ),"Prevalence",
+      "Prevalence",
+      "Intensity",
+      "Intensity",
+      "Fecundity",
+      "Fecundity",
+      "Survivorship",
+      "Survivorship"),
+    Overall_mean = round(Q2.R1.2$beta, 3),
+    Lower_95 = round(Q2.R1.2$ci.lb, 3),
+    Upper_95 = round(Q2.R1.2$ci.ub, 3),
+    P_value = round(Q2.R1.2$pval, 3))
+
+N_effects <- dat_2 %>% group_by(Transmission, Gradient.category, Trait.type) %>% summarise(N_effects = length(ID))
+N_experiments <- dat_2 %>% group_by(Transmission, Gradient.category, Trait.type) %>% summarise(N_experiments = length(unique(Experiment)))
+N_hosts <- dat_2 %>% group_by(Transmission, Gradient.category, Trait.type) %>% summarise(N_hosts = length(unique(Host)))
+
+TableQ2.R1.2 <-
+  left_join(TableQ2.R1.2, N_effects) %>% left_join(N_experiments) %>%  left_join(N_hosts) %>%
+  dplyr::rename(Stressor_type = Gradient.category,
+                Response_trait = Trait.type) %>%
+  mutate(Stressor_type = plyr::revalue(
+    Stressor_type,
+    c(
+      "Environment" = "Endogenous Environment",
+      "Pollution" = "Chemical Pollution",
+      "Resource" = "Resource Limitation"
+    )
+  ))
+
+rownames(TableQ2.R1.2) <- NULL
+
+TableQ2.R1.2 %>%
+  kbl() %>%
+  kable_material(c("striped", "hover"), full_width = F)
+```
+
+Does accounting for the transmission mode reduce heterogeneity?
+We calculate I2 using the formula above from Nakagawa and Santos (2012) for the model without the var-covar matrix.
+
+```{r  dat_2-Env-I2-RVE}
+Q2.R1.2.R <-
+  rma.mv(
+    g ~ Transmission:Trait.type:Gradient.category -1 ,
+    V = dat_2$var.g,
+    random = list( ~ 1 | Experiment, ~ 1 | ID),
+    data = dat_2,
+    method = "REML"
+  )
+I2.Q2.R1.2 <- I2(Q2.R1.2.R, v = dat_1$var.g, obs = "ID")*100
+I2.Q2.R1.2
 ```
