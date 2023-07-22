@@ -16,7 +16,7 @@ Load packages
 ```{r load-packages, message=FALSE, results='hide'}
 x <-
   c(
-    "metafor", "kableExtra", "Matrix", "dplyr", "wesanderson", "weightr", "ggplot2", "MuMIn", "RColorBrewer", "tidyverse", "patchwork", "devtools", "R.rsp", "orchaRd")
+    "metafor", "kableExtra", "Matrix", "dplyr", "wesanderson", "weightr", "ggplot2", "MuMIn", "RColorBrewer", "tidyverse", "patchwork", "devtools", "R.rsp", "orchaRd", "ggpubr")
 
 lapply(x, function(y) {
   # check if installed, if not install
@@ -26,7 +26,7 @@ lapply(x, function(y) {
   # load package
   try(require(y, character.only = T), silent = T)
 })
-
+rm(x)
 #remotes::install_github("itchyshin/orchard_plot", subdir = "orchaRd", force = TRUE, build_vignettes = TRUE)
 ```
 
@@ -551,7 +551,7 @@ dat_2 <- mutate(dat_2, Host.type.2 = case_when(
 
 ```
 
-<!---
+Following R2 suggestions:
 Create a new column collapsing pollution and environmental stress into one "Environment" category
 ```{r pollution/environment stress category}
 dat_1 <- mutate(dat_1, Gradient.category.2 = case_when(
@@ -566,7 +566,7 @@ dat_2 <- mutate(dat_2, Gradient.category.2 = case_when(
 
 ```
 
---->
+
 
 # Numbers mentioned in the methods
 The Methods section describes various features of the data, indicating the number of studies/effects with those features. Numbers are calculated here. 
@@ -575,6 +575,7 @@ The Methods section describes various features of the data, indicating the numbe
 # First, get all the curated data
 final_dat <- merge(dat_2, dat_1, all = T )
 nrow(final_dat)
+final_dat$Parasite.type[final_dat$Parasite.type=="Virus "]<-"Virus"
 
 # do we have any observational studies left after filtering?
 levels(as.factor(final_dat$Study.type))
@@ -631,11 +632,39 @@ Host_count %>%
   kbl() %>%
   kable_material(c("striped", "hover"), full_width = F)
 
+# Host by class
+Host_count.class <- final_dat %>% group_by(Host.class) %>%
+  summarise(N_taxa = length(unique(Host)))
+
+Host_count.class %>%
+  kbl() %>%
+  kable_material(c("striped", "hover"), full_width = F)
+
 # how many parasite taxa per taxonomic groups
 Par_count <- final_dat %>% group_by(Parasite.type) %>%
-  summarise(N_taxa = length(unique(Parasite)))
+  summarise(N_taxa = length(unique(Parasite)))  
 
 Par_count %>%
+  kbl() %>%
+  kable_material(c("striped", "hover"), full_width = F)
+
+# Aquatic versus terrestrial
+Env_count <- final_dat %>% 
+  group_by(Study, Host.type, Host.class, Parasite, Environment) %>%
+  summarise(N = length(unique(Environment))) %>% group_by(Environment) %>%
+  summarise(N = length(unique(Parasite)))
+
+Env_count %>%
+  kbl() %>%
+  kable_material(c("striped", "hover"), full_width = F)
+
+# Direct versus indirect
+Trans_count <- final_dat %>% 
+  group_by(Study, Host.type, Host.class, Parasite, Transmission) %>%
+  summarise(N = length(unique(Environment))) %>% group_by(Transmission) %>%
+  summarise(N = length(unique(Parasite)))
+
+Trans_count %>%
   kbl() %>%
   kable_material(c("striped", "hover"), full_width = F)
 ```
@@ -660,8 +689,9 @@ full_model.1 <- rma.mv(
   )
 
 model_selection.1 <- dredge(full_model.1, trace = 2) 
-subset(model_selection.1, delta <= 10, recalc.weights = FALSE)
-
+Table1 <- subset(model_selection.1, delta <= 10, recalc.weights = FALSE)
+Table1
+#write.table(Table1, "/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures/TableS1.txt")
 # relative importance values for the predictors can be obtained with:
 sw(model_selection.1)
 ```
@@ -678,7 +708,7 @@ Q1.f <-
     method = "REML"
   )
 
-pal <- RColorBrewer::brewer.pal(9,"Spectral")
+pal <- RColorBrewer::brewer.pal(6,"Spectral")
 
 Q1.f_OP <-
   orchard_plot(
@@ -690,24 +720,25 @@ Q1.f_OP <-
   ) +
   scale_fill_manual(values = rep(pal, each = 2)) + scale_colour_manual(values = rep(pal, each = 2)) +
   theme(legend.position = c(0.25, 0.01), axis.title = element_text(size = 15), axis.text.y = element_text(size = 15)) +
-  scale_y_discrete(
-    labels = c(
-      "Infected:EE:fecund",
-      "Uninfected:EE:fecund",
-      "Infected:EE:surv",
-      "Uninfected:EE:surv",
-      "Infected:CP:fecund",
-      "Uninfected:CP:fecund",
-      "Infected:CP:surv",
-      "Uninfected:CP:surv",
-      "Infected:RL:fecund",
-      "Uninfected:RL:fecund",
-      "Infected:RL:surv",
-      "Uninfected:RL:surv"
+  scale_y_discrete(labels = c(
+      "EE:Infected:fecundity",
+      "EE:Uninfected:fecundity",
+      "EE:Infected:survivorship",
+      "EE:Uninfected:survivorship",
+      "CP:Infected:fecundity",
+      "CP:Uninfected:fecundity",
+      "CP:Infected:survivorship",
+      "CP:Uninfected:survivorship",
+      "RL:Infected:fecundity",
+      "RL:Uninfected:fecundity",
+      "RL:Infected:survivorship",
+      "RL:Uninfected:survivorship"
     )
-  )
-
+  ) 
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q1.f_OP.png",width=15,height=7,units="in",res=600)
 Q1.f_OP
+#dev.off()
 ```
 
 ### Best Model: Effects in  survival vs fecundity under different types of stress, combining infected and uninfected
@@ -722,9 +753,14 @@ Q1 <-
   )
 
 summary(Q1)
+
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q1.png",width=9,height=5,units="in",res=600)
 forest.default(x= Q1$beta, sei =  Q1$se, ci.lb =  Q1$ci.lb, ci.ub =  Q1$ci.ub, 
-                annotate=TRUE, showweights=T, header=F,
-                slab = c("Environment fecundity", "Environment survivorship", "Pollution  fecundity", "Pollution  survivorship", "Resource  fecundity", "Resource  survivorship"))
+                annotate=TRUE, showweights=T, header=F, pch = 19,
+                slab = c("EE:fecundity", "EE:survivorship", "CP:fecundity", "CP:survivorship", "RL:fecundity", "RL:survivorship"), order = c("Study 6", "Study 5", "Study 4", "Study 3",
+                                              "Study 2", "Study 1"))
+#dev.off()
 ```
 
 Make Table 2 with results from Q1
@@ -763,6 +799,8 @@ rownames(Table2) <- NULL
 Table2 %>%
   kbl() %>%
   kable_material(c("striped", "hover"), full_width = F)
+
+#write.table(Table2, "/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures/TableS2.txt")
 ```
 
 Make Figure 2 with the results of the best model for Q1
@@ -787,8 +825,10 @@ Q1_OP <-
                "CP:survivorship",
                "RL:fecundity",
                "RL:survivorship"))
-
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q1_OP.png",width=12,height=7,units="in",res=600)
 Q1_OP
+#dev.off()
 ```
 
 #### RVE
@@ -806,10 +846,14 @@ Q1.R <-
 
 Q1.R_est <- clubSandwich::coef_test(Q1.R, vcov = "CR2")
 
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q1_R.est.png",width=7,height=5,units="in",res=600)
 forest.default(x= Q1.R_est$beta, sei =  Q1.R_est$SE, pch = 19,
                 annotate=TRUE, showweights=F, header=c("Parameter", "Estimate [95% CI]"), 
-                slab = c("EE:fecundity", "EE:survivorship", "CP:fecundity", "CP:survivorship", "RL:fecundity", "RL:survivorship"), 
+                slab = c("EE:fecundity", "EE:survivorship", "CP:fecundity", "CP:survivorship", "RL:fecundity", "RL:survivorship"), order = c("Study 6", "Study 5", "Study 4", "Study 3",
+                                              "Study 2", "Study 1"), 
                xlab = "Standardised mean difference (Hedge's g)")
+#dev.off()
 ```
 
 
@@ -828,12 +872,13 @@ full_model.2 <- rma.mv(
 
 # Define if using Trait.type or Trait.category
 model_selection.2 <- dredge(full_model.2, trace = 2) 
-subset(model_selection.2, delta <= 10, recalc.weights = FALSE)
+Table3 <- subset(model_selection.2, delta <= 10, recalc.weights = FALSE)
+#write.table(Table3, "/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures/TableS3.txt")
 
 # relative importance values for the predictors can be obtained with:
 sw(model_selection.2)
 ```
-<!---
+
 #### Merge Pollution and Environmental stressors 
 ```{r}
 full_model.2.merged <- rma.mv(
@@ -849,10 +894,10 @@ model_selection.2.merged <- dredge(full_model.2.merged, trace = 2)
 subset(model_selection.2.merged, delta <= 10, recalc.weights = FALSE)
 
 # relative importance values for the predictors can be obtained with:
-importance(model_selection.2.merged)
+sw(model_selection.2.merged)
 
 ```
---->
+
 
 #### Fitness versus infectivity traits 
 ```{r}
@@ -884,14 +929,17 @@ Q2 <-
 )
 
 summary(Q2)
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q2.png",width=9,height=5,units="in",res=600)
 forest.default(x= Q2$beta, sei =  Q2$se, ci.lb =  Q2$ci.lb, ci.ub =  Q2$ci.ub, 
                 annotate=TRUE, showweights=T, header=F,
                 slab = c("EE:prevalence", "EE:intensity","EE:fecundity", "EE:survivorship",
                "CP:prevalence", "CP:intensity","CP:fecundity", "CP:survivorship",
                "RL:prevalence", "RL:intensity","RL:fecundity","RL:survivorship"))
+#dev.off()
 ```
 
-```{r Q2 best Orchard Plot, fig.width=16, fig.height=12}
+```{r Q2 best Orchard Plot}
 par_short <- c("EE:prevalence", "EE:intensity","EE:fecundity", "EE:survivorship",
                "CP:prevalence", "CP:intensity","CP:fecundity", "CP:survivorship",
                "RL:prevalence", "RL:intensity","RL:fecundity","RL:survivorship")
@@ -911,7 +959,10 @@ Q2_OP <-
   scale_colour_manual(values = rep(pal[c(7,8,10,11,5,4)], each = 2)) +
   scale_y_discrete(labels = par_short)
 
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q2_OP.png",width=12,height=7,units="in",res=600)
 Q2_OP
+#dev.off()
 ```
 
 ### Contrasts
@@ -937,11 +988,15 @@ Q2.flip <-
 )
 
 summary(Q2.flip)
+
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q2.flip.png",width=9,height=5,units="in",res=600)
 forest.default(x= Q2.flip$beta, sei =  Q2.flip$se, ci.lb =  Q2.flip$ci.lb, ci.ub =  Q2.flip$ci.ub, 
                 annotate=TRUE, showweights=T, header=F,
                 slab = c("EE:prevalence", "EE:intensity","EE:fecundity", "EE:survivorship",
                "CP:prevalence", "CP:intensity","CP:fecundity", "CP:survivorship",
                "RL:prevalence", "RL:intensity","RL:fecundity","RL:survivorship"))
+#dev.off()
 ```
 
 ##### Wald-type chi-square tests contrasting fitness vs infectivity effects on infected hosts with flipped values.
@@ -999,11 +1054,15 @@ Q2.abs <-
 )
 
 summary(Q2.abs)
+
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q2.abs.png",width=9,height=5,units="in",res=600)
 forest.default(x= Q2.abs$beta, sei =  Q2.abs$se, ci.lb =  Q2.abs$ci.lb, ci.ub =  Q2.abs$ci.ub, 
                 annotate=TRUE, showweights=T, header=F,
                 slab = c("EE:prevalence", "EE:intensity","EE:fecundity", "EE:survivorship",
                "CP:prevalence", "CP:intensity","CP:fecundity", "CP:survivorship",
                "RL:prevalence", "RL:intensity","RL:fecundity","RL:survivorship"))
+#dev.off()
 ```
 
 ##### Wald-type chi-square tests contrasting fitness vs infectivity effects on infected hosts.
@@ -1041,7 +1100,7 @@ anova(Q2.abs, X=c(0,0,0,0,0,0,0,0,0,-1,0,1))
 
 ```{r Q2 Results table}
 
-Table3 <- data.frame(Stressor_type = rep(c("Endogenous environment",  "Chemical pollution","Resource limitation"), each = 4),
+Table4 <- data.frame(Stressor_type = rep(c("Endogenous environment",  "Chemical pollution","Resource limitation"), each = 4),
                      Response_trait = c(rep(c("Prevalence","Intensity","Fecundity", "Survivorship"), 3)),
                      Overall_mean = round(Q2$beta,3),
                      Lower_95 = round(Q2$ci.lb,3),
@@ -1086,11 +1145,12 @@ N_host_taxa = c(length(unique(dat_2$Host[dat_2$Gradient.category == "Environment
                 length(unique(dat_2$Host[dat_2$Gradient.category == "Resource" & dat_2$Trait.type == "Survivorship"]))
 ))
 
-rownames(Table3) <- NULL
+rownames(Table4) <- NULL
 
-Table3 %>%
+Table4 %>%
   kbl() %>%
   kable_material(c("striped", "hover"), full_width = F)
+#write.table(Table4,"/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures/TableS4.txt")
 ```
 
 ### RVE
@@ -1109,10 +1169,14 @@ Q2.R <-
 
 Q2.R_est <- clubSandwich::coef_test(Q2.R, vcov = "CR2")
 
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q2.R_est.png",width=9,height=5,units="in",res=600)
 forest.default(x= Q2.R_est$beta, sei =  Q2.R_est$SE, pch = 19,
                 annotate=TRUE, showweights=F, header=c("Parameter", "Estimate [95% CI]"), 
                 slab = c("EE:prevalence", "EE:intensity", "EE:fecundity", "EE:survivorship", "CP:prevalence", "CP:intensity", "CP:fecundity", "CP:survivorship", "RL:prevalence", "RL:intensity", "RL:fecundity", "RL:survivorship"), 
+               order = c("Study 9","Study 8", "Study 7", "Study 6", "Study 5", "Study 4", "Study 3", "Study 2", "Study 12", "Study 11", "Study 10", "Study 1"),
                xlab = "Standardised mean difference (Hedge's g)")
+#dev.off()
 ```
 
 # Heterogeneity
@@ -1247,8 +1311,11 @@ nlvl <- length(dat_1$g)
 pal <- colorRampPalette(brewer.pal(9, "YlOrRd"))(nlvl)
 pal <-pal[order(match(pal,dat_1$g))]
 
-# plot funnel with conditional residuals
+#plot funnel with conditional residuals
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Funnelplot.Q1res.png",width=9,height=5,units="in",res=600)
 metafor::funnel(Q1res$resid, sqrt(dat_1$var.g), level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal, back = "white", refline=0, legend=TRUE, xlab = "Conditional residual", ylab = "Standard error")
+#dev.off()
 ```
 
 We can see that as SE increases (e.g ~ 1) all studies report large negative fitness effects of environmental stress (large negative residuals). In other words, it seems that very small studies tend to find that environmental stress is more negative to fitness!
@@ -1274,7 +1341,10 @@ pal <- colorRampPalette(brewer.pal(9, "YlOrRd"))(nlvl)
 pal <-pal[order(match(pal,dat_2$g))]
 
 # plot funnel with all conditional residuals
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Funnelplot.Q2res.png",width=9,height=5,units="in",res=600)
 metafor::funnel(Q2res$resid, sqrt(dat_2$var.g), level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal, back = "white", refline=0, legend=TRUE, xlab = "Conditional residual", ylab = "Standard error")
+#dev.off()
 ```
 
 Because this data set includes both the infectivity and fitness effects it's not surprising that small studies are distributed on both sides of the funnel. This does not mean absence of publication bias as negative effects for fitness and positive effects for (-) infectivity both would suggest that small studies tend to inflate the negative consequences of environmental stress. For the publication, I suggest we use -g for infectivity effects (currently g = infection intensity or prevalence) and/or we use funnel plots for only dataset 1.
@@ -1328,10 +1398,13 @@ Q1.B <-
 
 summary(Q1.B)
 
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q1.B.png",width=9,height=5,units="in",res=600)
 forest.default(x= Q1.B$beta, sei =  Q1.B$se, pch = 19,
                 annotate=TRUE, showweights=F, header=c("Parameter", "Estimate [95% CI]"), 
                 slab = c("variance", "EE:fecundity", "EE:survivorship", "CP:fecundity", "CP:survivorship", "RL:fecundity", "RL:survivorship"), 
                xlab = "Standardised mean difference (Hedge's g)")
+#dev.off()
 ```
 
 #### Data set 2: fitness and infectivity effects of environmental stress
@@ -1378,10 +1451,13 @@ Q2.B <-
 
 summary(Q2.B)
 
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q2.B.png",width=9,height=5,units="in",res=600)
 forest.default(x= Q2.B$beta, sei =  Q2.B$se, pch = 19,
                 annotate=TRUE, showweights=F, header=c("Parameter", "Estimate [95% CI]"), 
                 slab = c("variance","EE:prevalence", "EE:intensity", "EE:fecundity", "EE:survivorship", "CP:prevalence", "CP:intensity", "CP:fecundity", "CP:survivorship", "RL:prevalence", "RL:intensity", "RL:fecundity", "RL:survivorship"), 
                xlab = "Standardised mean difference (Hedge's g)")
+#dev.off()
 ```
 
 #### Contrasts
@@ -1398,10 +1474,14 @@ Q2.B.abs <-
 )
 
 summary(Q2.B.abs)
+
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q2.B.abs.png",width=9,height=5,units="in",res=600)
 forest.default(x= Q2.B.abs$beta, sei =  Q2.B.abs$se, pch = 19,
                 annotate=TRUE, showweights=F, header=c("Parameter", "Estimate [95% CI]"), 
                 slab = c("variance","EE:prevalence", "EE:intensity", "EE:fecundity", "EE:survivorship", "CP:prevalence", "CP:intensity", "CP:fecundity", "CP:survivorship", "RL:prevalence", "RL:intensity", "RL:fecundity", "RL:survivorship"), 
                xlab = "Standardised mean difference (Hedge's g)")
+#dev.off()
 ```
 
 Wald-type chi-square tests contrasting fitness vs infectivity effects on infected hosts.
@@ -1439,22 +1519,23 @@ anova(Q2.B.abs, X=c(0,0,0,0,0,0,0,0,0,0,-1,0,1))
 
 #### Supporting Tables
 
-Table S3
-```{r Table S3}
-TableS3 <- data.frame(question = rep(c("Q1", "Q2"), each =  2),
+Table S5
+```{r Table S5}
+TableS5 <- data.frame(question = rep(c("Q1", "Q2"), each =  2),
                       step = rep(c("Step 1", "Step 2"),2),
                       slope = c(round(d1s1$b[2],3), round(d1s2$b[2],3), round(d2s1$b[2],3), round(d2s2$b[2],3)),
                       se = c(round(d1s1$se[2],3), round(d1s2$se[2],3), round(d2s1$se[2],3), round(d2s2$se[2],3)),
                       pval =c(round(d1s1$pval[2],3), round(d1s2$pval[2],3), round(d2s1$pval[2],3), round(d2s2$pval[2],3)))
 
-TableS3 %>%
+TableS5 %>%
   kbl() %>%
   kable_material(c("striped", "hover"), full_width = F)
+#write.table(TableS5, "/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures/TableS5.txt")
 ```
 
-Table S4
+Table S6
 ```{r Q1 Results table adjusted}
-TableS4 <- data.frame(Stressor_type = Table2$Stressor_type,
+TableS6 <- data.frame(Stressor_type = Table2$Stressor_type,
                      Response_trait = Table2$Response_trait,
                      Overall_mean = Table2$Overall_mean,
                      Lower_95 = Table2$Lower_95,
@@ -1468,31 +1549,33 @@ TableS4 <- data.frame(Stressor_type = Table2$Stressor_type,
                      N_experiments = Table2$N_experiments,
                      N_host_taxa = Table2$N_host_taxa)
 
-TableS4 %>%
+TableS6 %>%
   kbl() %>%
   kable_material(c("striped", "hover"), full_width = T)
+write.table(TableS6, "/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures/TableS6.txt")
 ```
 
 
-Table S5
+Table S7
 ```{r Q2 Results table adjusted}
-TableS5 <- data.frame(Stressor_type = Table3$Stressor_type,
-                     Response_trait = Table3$Response_trait,
-                     Overall_mean = Table3$Overall_mean,
-                     Lower_95 = Table3$Lower_95,
-                     Upper_95 = Table3$Upper_95,
-                     P_value = Table3$P_value,
+TableS7 <- data.frame(Stressor_type = Table4$Stressor_type,
+                     Response_trait = Table4$Response_trait,
+                     Overall_mean = Table4$Overall_mean,
+                     Lower_95 = Table4$Lower_95,
+                     Upper_95 = Table4$Upper_95,
+                     P_value = Table4$P_value,
                      Overall_mean_adjusted = round(Q2.B$beta[-1],3),
                      Lower_95_adjusted = round(Q2.B$ci.lb[-1],3),
                      Upper_95_adjusted = round(Q2.B$ci.ub[-1],3),
                      P_value_adjusted = round(Q2.B$pval[-1],3),
-                     N_effects = Table3$N_effects,
-                     N_experiments = Table3$N_experiments,
-                     N_host_taxa = Table3$N_host_taxa)
+                     N_effects = Table4$N_effects,
+                     N_experiments = Table4$N_experiments,
+                     N_host_taxa = Table4$N_host_taxa)
 
-TableS5 %>%
+TableS7 %>%
   kbl() %>%
   kable_material(c("striped", "hover"), full_width = T)
+write.table(TableS7, "/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures/TableS7.txt")
 ```
 
 # R1
@@ -1830,23 +1913,53 @@ Q0.R1.f_OP <-
       "Survivorship"
     )
   )
-
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q0.R1.f_OP.png",width=12,height=5,units="in",res=600)
 Q0.R1.f_OP
+#dev.off()
 ```
 
 ### Forest  plot
 ```{r Q0.R1 Best model}
 summary(Q0.R1.f)
 
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q0.R1.f.png",width=10,height=5,units="in",res=600)
 forest.default(x= Q0.R1.f$beta, sei =  Q0.R1.f$se, ci.lb =  Q0.R1.f$ci.lb, ci.ub =  Q0.R1.f$ci.ub, 
                 annotate=TRUE, showweights=T, header=F,
                 slab = c("Fecundity", "Survivorship"))
+#dev.off()
+```
+Make Table SX-1 with results from Q0.R1
+
+```{r Q0.R1 Results table}
+
+TableSX_1 <- data.frame(Response_trait = c("Fecundity", "Survivorship"),
+                     Overall_mean = round(Q0.R1.f$beta,3),
+                     Lower_95 = round(Q0.R1.f$ci.lb,3),
+                     Upper_95 = round(Q0.R1.f$ci.ub,3),
+                     P_value = round(Q0.R1.f$pval,3),
+                     N_effects = c(length(dat_UI$ID.x[dat_UI$Trait.type == "Fecundity"]),
+                                   length(dat_UI$ID.x[dat_UI$Trait.type == "Survivorship"])),
+                     N_experiments = c(length(unique(dat_UI$Experiment[dat_UI$Trait.type == "Fecundity"])), 
+                                       length(unique(dat_UI$Experiment[dat_UI$Trait.type == "Survivorship"]))),
+                     N_host_taxa = c(length(unique(dat_UI$Host[dat_UI$Trait.type == "Fecundity"])),
+                                   length(unique(dat_UI$Host[dat_UI$Trait.type == "Survivorship"]))
+))
+
+rownames(TableSX_1) <- NULL
+
+TableSX_1 %>%
+  kbl() %>%
+  kable_material(c("striped", "hover"), full_width = F)
+
+write.table(TableSX_1, "/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures/TableSX-1.txt")
 ```
 
 ### RVE
 We check if our results are qualitatively similar if we use the robust variance estimator instead of the var-covar matrix for effects estimated in the same experiment.
 
-```{r Q2 best RVE}
+```{r Q2 best RVE.2}
 Q0.R1.R <-
   rma.mv(
     g ~ Trait.type -1,
@@ -1859,10 +1972,13 @@ Q0.R1.R <-
 
 Q0.R1.R_est <- clubSandwich::coef_test(Q0.R1.R, vcov = "CR2")
 
+setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+png("Q0.R1.R_est.png",width=7,height=5,units="in",res=600)
 forest.default(x= Q0.R1.R_est$beta, sei =  Q0.R1.R_est$SE, pch = 19,
                 annotate=TRUE, showweights=F, header=c("Parameter", "Estimate [95% CI]"), 
                 slab = c("Fecundity", "Survivorship"), 
                xlab = "Standardised mean difference (Hedge's g)")
+dev.off()
 ```
 
 ## Comment 2.R1 - Do aquatic and terrestrial systems differ in their responses to stressors?
@@ -1885,6 +2001,8 @@ Q1.R1 <-
 
 summary(Q1.R1)
 
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q0.R1.png",width=10,height=5,units="in",res=600)
 forest.default(
   x = Q1.R1$beta,
   sei =  Q1.R1$se,
@@ -1905,6 +2023,7 @@ forest.default(
     "Aquatic:RL:survivorship"
   )
 )
+#dev.off()
 ```
 ```{r Q1.R1 best Orchard Plot}
 pal <- RColorBrewer::brewer.pal(11,"Spectral")
@@ -1921,17 +2040,20 @@ Q1.R1_OP <-
   scale_colour_manual(values = pal[c(7,8,8,10,11,11,5,5,4)]) +
   theme(legend.position = c(0.25, 0.01), axis.title = element_text(size = 15), axis.text.y = element_text(size = 15)) +
   scale_y_discrete(
-    labels = c("AQ:EE:fecundity",
-               "AQ:EE:survivorship",
-               "TE:EE:survivorship",
-               "AQ:CP:fecundity",
-               "AQ:CP:survivorship",
-               "TE:CP:survivorship",
-               "AQ:RL:fecundity",
-               "TE:RL:fecundity",
-               "AQ:RL:survivorship"))
+    labels = c("EE:AQ:fecundity",
+               "EE:AQ:survivorship",
+               "EE:TE:survivorship",
+               "CP:AQ:fecundity",
+               "CP:AQ:survivorship",
+               "CP:TE:survivorship",
+               "RL:AQ:fecundity",
+               "RL:TE:fecundity",
+               "RL:AQ:survivorship"))
 
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q1.R1_OP.png",width=12,height=5,units="in",res=600)
 Q1.R1_OP
+#dev.off()
 ```
 Make Table with results from Q1.R1
 
@@ -1996,6 +2118,7 @@ rownames(TableQ1.R1) <- NULL
 TableQ1.R1 %>%
   kbl() %>%
   kable_material(c("striped", "hover"), full_width = F)
+#write.table(TableQ1.R1, "/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures/TableQ1.R1.txt")
 ```
 
 Does accounting for the transmission environment reduce heterogeneity?
@@ -2032,6 +2155,8 @@ Q2.R1 <-
 
 summary(Q2.R1)
 
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q2.R1.png",width=9,height=10,units="in",res=600)
 forest.default(
   x = Q2.R1$beta,
   sei =  Q2.R1$se,
@@ -2041,59 +2166,60 @@ forest.default(
   showweights = T,
   header = F,
   slab = c(
-    "AQ:EE:prevalence",
-    "TE:EE:prevalence",
-    "AQ:EE:intensity",
-    "TE:EE:intensity",
-    "AQ:EE:fecundity",
-    "TE:EE:fecundity",
-    "AQ:EE:survivorship",
-    "TE:EE:survivorship",
-    "AQ:CP:prevalence",
-    "TE:CP:prevalence",
-    "AQ:CP:intensity",
-    "TE:CP:intensity",
-    "AQ:CP:fecundity",
-    "TE:CP:fecundity",
-    "AQ:CP:survivorship",
-    "TE:CP:survivorship",
-    "AQ:RL:prevalence",
-    "TE:RL:prevalence",
-    "AQ:RL:intensity",
-    "TE:RL:intensity",
-    "AQ:RL:fecundity",
-    "TE:RL:fecundity",
-    "AQ:RL:survivorship",
-    "TE:RL:survivorship"
+    "EE:AQ:prevalence",
+    "EE:TE:prevalence",
+    "EE:AQ:intensity",
+    "EE:TE:intensity",
+    "EE:AQ:fecundity",
+    "EE:TE:fecundity",
+    "EE:AQ:survivorship",
+    "EE:TE:survivorship",
+    "CP:AQ:prevalence",
+    "CP:TE:prevalence",
+    "CP:AQ:intensity",
+    "CP:TE:intensity",
+    "CP:AQ:fecundity",
+    "CP:TE:fecundity",
+    "CP:AQ:survivorship",
+    "CP:TE:survivorship",
+    "RL:AQ:prevalence",
+    "RL:TE:prevalence",
+    "RL:AQ:intensity",
+    "RL:TE:intensity",
+    "RL:AQ:fecundity",
+    "RL:TE:fecundity",
+    "RL:AQ:survivorship",
+    "RL:TE:survivorship"
   )
 )
+#dev.off()
 ```
 
 ```{r Q2.R1 best Orchard Plot, fig.width=16, fig.height=12}
-par_short <- c("AQ:EE:prevalence",
-    "TE:EE:prevalence",
-    "AQ:EE:intensity",
-    "TE:EE:intensity",
-    "AQ:EE:fecundity",
-    "TE:EE:fecundity",
-    "AQ:EE:survivorship",
-    "TE:EE:survivorship",
-    "AQ:CP:prevalence",
-    "TE:CP:prevalence",
-    "AQ:CP:intensity",
-    "TE:CP:intensity",
-    "AQ:CP:fecundity",
-    "TE:CP:fecundity",
-    "AQ:CP:survivorship",
-    "TE:CP:survivorship",
-    "AQ:RL:prevalence",
-    "TE:RL:prevalence",
-    "AQ:RL:intensity",
-    "TE:RL:intensity",
-    "AQ:RL:fecundity",
-    "TE:RL:fecundity",
-    "AQ:RL:survivorship",
-    "TE:RL:survivorship")
+par_short <- c("EE:AQ:prevalence",
+    "EE:TE:prevalence",
+    "EE:AQ:intensity",
+    "EE:TE:intensity",
+    "EE:AQ:fecundity",
+    "EE:TE:fecundity",
+    "EE:AQ:survivorship",
+    "EE:TE:survivorship",
+    "CP:AQ:prevalence",
+    "CP:TE:prevalence",
+    "CP:AQ:intensity",
+    "CP:TE:intensity",
+    "CP:AQ:fecundity",
+    "CP:TE:fecundity",
+    "CP:AQ:survivorship",
+    "CP:TE:survivorship",
+    "RL:AQ:prevalence",
+    "RL:TE:prevalence",
+    "RL:AQ:intensity",
+    "RL:TE:intensity",
+    "RL:AQ:fecundity",
+    "RL:TE:fecundity",
+    "RL:AQ:survivorship",
+    "RL:TE:survivorship")
 
 pal <- RColorBrewer::brewer.pal(11,"Spectral")
 
@@ -2110,13 +2236,15 @@ Q2.R1_OP <-
   scale_colour_manual(values = rep(pal[c(7,8,10,11,5,4)], each = 4)) +
   scale_y_discrete(labels = par_short)
 
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q2.R1_OP.png",width=12,height=12,units="in",res=600)
 Q2.R1_OP
+#dev.off()
 ```
 
 Make Table with results from Q2.R1
 
 ```{r Q2.R1 Results table}
-
 TableQ2.R1 <-
   data.frame(
     Environment = rep(c(
@@ -2167,6 +2295,7 @@ rownames(TableQ2.R1) <- NULL
 TableQ2.R1 %>%
   kbl() %>%
   kable_material(c("striped", "hover"), full_width = F)
+#write.table(TableQ2.R1, "/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures/TableQ2.R1.txt")
 ```
 
 Does accounting for the transmission environment reduce heterogeneity?
@@ -2205,6 +2334,8 @@ Q1.R1.2 <-
 
 summary(Q1.R1.2)
 
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q1.R1_2.png",width=10,height=7,units="in",res=600)
 forest.default(
   x = Q1.R1.2$beta,
   sei =  Q1.R1.2$se,
@@ -2214,19 +2345,20 @@ forest.default(
   showweights = T,
   header = F,
   slab = c(
-    "Indirect:EE:fecundity",
-    "Direct:EE:survivorship",
-    "Indirect:EE:survivorship",
-    "Indirect:CP:fecundity",
-    "Direct:CP:survivorship",
-    "Indirect:CP:survivorship",
-    "Direct:RL:fecundity",
-    "Indirect:RL:fecundity",
-    "Direct:RL:survivorship",
-    "Indirect:RL:survivorship"
+    "EE:Indirect:fecundity",
+    "EE:Direct:survivorship",
+    "EE:Indirect:survivorship",
+    "CP:Indirect:fecundity",
+    "CP:Direct:survivorship",
+    "CP:Indirect:survivorship",
+    "RL:Direct:fecundity",
+    "RL:Indirect:fecundity",
+    "RL:Direct:survivorship",
+    "RL:Indirect:survivorship"
     
   )
 )
+#dev.off()
 ```
 
 ```{r Q1.R1.2 best Orchard Plot}
@@ -2244,18 +2376,21 @@ Q1.R1.2_OP <-
   scale_colour_manual(values = pal[c(7,8,8,10,11,11,5,5,4,4)]) +
   theme(legend.position = c(0.25, 0.01), axis.title = element_text(size = 15), axis.text.y = element_text(size = 15)) +
   scale_y_discrete(
-    labels = c("Indirect:EE:fecundity",
-               "Direct:EE:survivorship",
-               "Indirect:EE:survivorship",
-               "Indirect:CP:fecundity",
-               "Direct:CP:survivorship",
-               "Indirect:CP:survivorship",
-               "Direct:RL:fecundity",
-               "Indirect:RL:fecundity",
-               "Direct:RL:survivorship",
-               "Indirect:RL:survivorship"))
+    labels = c("EE:Indirect:fecundity",
+    "EE:Direct:survivorship",
+    "EE:Indirect:survivorship",
+    "CP:Indirect:fecundity",
+    "CP:Direct:survivorship",
+    "CP:Indirect:survivorship",
+    "RL:Direct:fecundity",
+    "RL:Indirect:fecundity",
+    "RL:Direct:survivorship",
+    "RL:Indirect:survivorship"))
 
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q1.R1_2_OP.png",width=12.5,height=7,units="in",res=600)
 Q1.R1.2_OP
+#dev.off()
 ```
 
 Make Table with results from Q1.R1.2
@@ -2303,7 +2438,7 @@ TableQ1.R1.2 <-
 
 N_effects <- dat_1 %>% group_by(Transmission, Gradient.category, Trait.type) %>% summarise(N_effects = length(ID))
 N_experiments <- dat_1 %>% group_by(Transmission, Gradient.category, Trait.type) %>% summarise(N_experiments = length(unique(Transmission)))
-N_hosts <- dat_1 %>% group_by(Transimission, Gradient.category, Trait.type) %>% summarise(N_hosts = length(unique(Host)))
+N_hosts <- dat_1 %>% group_by(Transmission, Gradient.category, Trait.type) %>% summarise(N_hosts = length(unique(Host)))
 
 TableQ1.R1.2 <-
   left_join(TableQ1.R1.2, N_effects) %>% left_join(N_experiments) %>%   left_join(N_experiments) %>%
@@ -2323,6 +2458,7 @@ rownames(TableQ1.R1.2) <- NULL
 TableQ1.R1.2 %>%
   kbl() %>%
   kable_material(c("striped", "hover"), full_width = F)
+#write.table(TableQ1.R1.2, "/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures/TableQ1.R1.2.txt")
 ```
 
 Does accounting for the transmission mode reduce heterogeneity?
@@ -2357,6 +2493,8 @@ Q2.R1.2 <-
 
 summary(Q2.R1.2)
 
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q2.R1_2.png",width=12,height=12,units="in",res=600)
 forest.default(
   x = Q2.R1.2$beta,
   sei =  Q2.R1.2$se,
@@ -2366,55 +2504,56 @@ forest.default(
   showweights = T,
   header = F,
   slab = c(
-    "Direct:EE:prevalence",
-    "Indirect:EE:prevalence",
-    "Direct:EE:intensity",
-    "Indirect:EE:intensity",
-    "Indirect:EE:fecundity",
-    "Direct:EE:survivorship",
-    "Indirect:EE:survivorship",
-    "Direct:CP:prevalence",
-    "Indirect:CP:prevalence",
-    "Direct:CP:intensity",
-    "Indirect:CP:intensity",
-    "Indirect:CP:fecundity",
-    "Direct:CP:survivorship",
-    "Indirect:CP:survivorship",
-    "Direct:RL:prevalence",
-    "Indirect:RL:prevalence",
-    "Direct:RL:intensity",
-    "Indirect:RL:intensity",
-    "Direct:RL:fecundity",
-    "Indirect:RL:fecundity",
-    "Direct:RL:survivorship",
-    "Indirect:RL:survivorship"
+    "EE:Direct:prevalence",
+    "EE:Indirect:prevalence",
+    "EE:Direct:intensity",
+    "EE:Indirect:intensity",
+    "EE:Indirect:fecundity",
+    "EE:Direct:survivorship",
+    "EE:Indirect:survivorship",
+    "CP:Direct:prevalence",
+    "CP:Indirect:prevalence",
+    "CP:Direct:intensity",
+    "CP:Indirect:intensity",
+    "CP:Indirect:fecundity",
+    "CP:Direct:survivorship",
+    "CP:Indirect:survivorship",
+    "RL:Direct:prevalence",
+    "RL:Indirect:prevalence",
+    "RL:Direct:intensity",
+    "RL:Indirect:intensity",
+    "RL:Direct:fecundity",
+    "RL:Indirect:fecundity",
+    "RL:Direct:survivorship",
+    "RL:Indirect:survivorship"
   )
 )
+#dev.off()
 ```
 
-```{r Q2.R1 best Orchard Plot, fig.width=16, fig.height=12}
-par_short <- c("Direct:EE:prevalence",
-    "Indirect:EE:prevalence",
-    "Direct:EE:intensity",
-    "Indirect:EE:intensity",
-    "Indirect:EE:fecundity",
-    "Direct:EE:survivorship",
-    "Indirect:EE:survivorship",
-    "Direct:CP:prevalence",
-    "Indirect:CP:prevalence",
-    "Direct:CP:intensity",
-    "Indirect:CP:intensity",
-    "Indirect:CP:fecundity",
-    "Direct:CP:survivorship",
-    "Indirect:CP:survivorship",
-    "Direct:RL:prevalence",
-    "Indirect:RL:prevalence",
-    "Direct:RL:intensity",
-    "Indirect:RL:intensity",
-    "Direct:RL:fecundity",
-    "Indirect:RL:fecundity",
-    "Direct:RL:survivorship",
-    "Indirect:RL:survivorship")
+```{r Q2.R1 best Orchard Plot2}
+par_short <- c("EE:Direct:prevalence",
+    "EE:Indirect:prevalence",
+    "EE:Direct:intensity",
+    "EE:Indirect:intensity",
+    "EE:Indirect:fecundity",
+    "EE:Direct:survivorship",
+    "EE:Indirect:survivorship",
+    "CP:Direct:prevalence",
+    "CP:Indirect:prevalence",
+    "CP:Direct:intensity",
+    "CP:Indirect:intensity",
+    "CP:Indirect:fecundity",
+    "CP:Direct:survivorship",
+    "CP:Indirect:survivorship",
+    "RL:Direct:prevalence",
+    "RL:Indirect:prevalence",
+    "RL:Direct:intensity",
+    "RL:Indirect:intensity",
+    "RL:Direct:fecundity",
+    "RL:Indirect:fecundity",
+    "RL:Direct:survivorship",
+    "RL:Indirect:survivorship")
 
 pal <- RColorBrewer::brewer.pal(11,"Spectral")
 pal <- pal[c(7,7,7,7,8,8,8,10,10,10,10,11,11,11,5,5,5,5,4,4,4,4)]
@@ -2432,7 +2571,10 @@ Q2.R1.2_OP <-
   scale_colour_manual(values = pal) +
   scale_y_discrete(labels = par_short)
 
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("Q2.R1.2_OP.png",width=12,height=12,units="in",res=600)
 Q2.R1.2_OP
+#dev.off()
 ```
 
 Make Table with results from Q2.R1
@@ -2516,12 +2658,13 @@ rownames(TableQ2.R1.2) <- NULL
 TableQ2.R1.2 %>%
   kbl() %>%
   kable_material(c("striped", "hover"), full_width = F)
+#write.table(TableQ2.R1.2, "/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures/TableQ2.R1.2")
 ```
 
 Does accounting for the transmission mode reduce heterogeneity?
 We calculate I2 using the formula above from Nakagawa and Santos (2012) for the model without the var-covar matrix.
 
-```{r  dat_2-Env-I2-RVE}
+```{r  dat_2-Env-I2-RVE2}
 Q2.R1.2.R <-
   rma.mv(
     g ~ Transmission:Trait.type:Gradient.category -1 ,

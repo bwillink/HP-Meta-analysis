@@ -1,0 +1,266 @@
+---
+title: "Models of disease across gradients"
+author: "DJC & AVS"
+date: "2/18/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load packages
+```{r load-packages, message=FALSE, results='hide'}
+x <- c("deSolve", "ggplot2", "RColorBrewer")
+
+lapply(x, function(y) {
+  # check if installed, if not install
+  if (!y %in% installed.packages()[, "Package"])
+    install.packages(y)
+  
+  # load package
+  try(require(y, character.only = T), silent = T)
+})
+
+```
+
+# Disease dynamics across environmental gradients, based on meta-analysis
+
+We are setting up two models: SI-Stress gradient [Environmental factor] and SI-Resource models. We then embed the results found in the meta-analysis of how traits respond to this variation.
+
+## Effects detected in the meta-analysis
+
+First, we tested for effects of stressors on demographic traits of uninfected vs. infected hosts, simply put: are infected more sensitive to stressors? Meta-analysis found no *proportional* difference between the groups for survival or reproduction. So in the models, when we incorporate these effects, we want to include a common parameter for the strength of these effects on both groups.
+
+We also found that while limited resources affected host reproduction (decreased fecundity), environmental stress and pollution affected survival. 
+
+When considering the effects of stress on infected host fitness and immune defense traits, we found that responses varied depending on the type of stressor. Environmental stress negatively affected both survival and reproduction, and host immune defenses were also negatively affected (increased infection intensity and prevalence). Pollution, although non-significant, tend to decrease survival and pathogen prevalence. And limited resources decreased reproduction, at the cost of increased immune defenses (although non-significant, tend to decrease pathogen intensity)
+
+### SI-Resource model
+Our meta-analysis shows that low resources have a negative effect on fecundity and may cause a decrease in pathogen intensity. We set up the differential equations:
+
+$$ \frac{dS}{dt}=  \underbrace{e f_M \frac{R}{h_r + R}\times (S + \rho I)}_{\mbox{Births}} - \underbrace { \beta_M \frac{R}{h_t + R}SI}_{\mbox{Transmission}}  - \underbrace{dS}_{\mbox{Deaths}}$$
+$$ \frac{dI}{dt}= \underbrace { \beta_M \frac{R}{h_t + R}SI}_{\mbox{Transmission}}  - \underbrace{(d + \nu)I}_{\mbox{Increased mortality}}$$
+$$ \frac{dR}{dt}=  \underbrace{r R \frac{1-R}{K}}_{\mbox{Resource growth}} - \underbrace { f_M \frac{R}{h_r + R}SI}_{\mbox{Resource removal}}$$
+
+Susceptible (S) and infected hosts (I) are foraging on available resources (R), while resources grow logistically. Host require resources to reproduce, determined by the conversion efficiency (e, births per unit of resource) and foraging rate ($f_M$). However, infected host reproduce at a smaller rate than susceptible host ($\rho$). Hosts die at a background death rate (d), but infected hosts have an increased mortality due to the pathogen ($\nu$). Hosts become infected at a transmission rate ($\beta_M$). To determine how fast traits rise with resource availability, as part of type 2 functional response, we use half saturation reproduction constant (hr) and half saturation transmission constant (ht). The latter (ht) increases as host are less sensitive to resource availability. 
+
+#### Simulations
+**Parameters and values used for simulations**
+
+| **Parameter** | **Definition** | **Value** |
+|---|---|---|
+| e | Conversion efficiency | 0.5 |
+| $f_M$ | Maximum foraging rate | 0.1 |
+| $h_r$ | Half saturation reproduction constant | 4 |
+| $\rho$ | Relative fecundity of I compared to S | 0.25 |
+| $h_t$ | Half saturation transmission constant | Varies (0,1,2,4,8) |
+| d | Background death rate | 0.01 |
+| $\beta_M$ | Transmission rate maximum | 0.01 |
+| $\nu$ | Virulence | 0.04 |
+| r | Resource growth rate | 1 |
+| K | Resource carrying capacity | 10 |
+
+```{r models}
+
+# 1. Specifying the model
+
+SI_Resource = function(t, y, parameters) {
+  S=y[1]; I=y[2]; R=y[3] 
+  with(as.list(parameters),{
+    
+    dSdt= e*fM*(R/(hr+R))*(S + rho*I) - BM*(R/(ht+R))*S*I - d*S    
+    dIdt= BM*(R/(ht+R))*S*I - (d + v)*I
+    dRdt = r*R*(1-R/K) - fM*(R/(hr+R))*(S + I)
+    result = c(dSdt,dIdt, dRdt)          # The function for simulation expects us to store the result this way
+    return(list(result))
+  }
+  ) 
+}
+
+# 2. Set parameters, initial conditions and run the simulation
+
+Inits = c(S = 10, I = 1, R = 10)
+pars = c(r = 1, K=10, fM = 0.1, hr = 4, ht = 2, e = 0.5, rho = 0.25, BM = 0.01, d = 0.01, v = 0.04)
+timespan = 100000
+
+sim1 = lsoda(y = Inits, times=0:timespan, parms = pars, func=SI_Resource)
+
+# Simulate over resource growth rate gradient and collect results
+S_result = numeric()
+I_result = numeric()
+R_result = numeric()
+r_inputs = seq(from = 0.1, to = 1, length.out = 10) # Switching back to R from C is slow, so I set the number of ENV values to 30 - fast enough
+ht_inputs = c(0, 1, 2, 4, 8)
+
+r_sim_inputs = numeric()
+ht_sim_inputs = numeric()
+k = 1
+    
+for(i in 1:length(r_inputs)){
+  pars["r"] = r_inputs[i]
+  for(j in 1:length(ht_inputs)){
+    pars["ht"] = ht_inputs[j]
+    sim = lsoda(y = Inits, times=0:timespan, parms = pars, func=SI_Resource, hmax=1,  maxsteps=1e7)
+    r_sim_inputs[k] = r_inputs[i]
+    ht_sim_inputs[k] = ht_inputs[j]
+    S_result[k] = sim[dim(sim)[1], 2]
+    I_result[k] = sim[dim(sim)[1], 3]
+    R_result[k] = sim[dim(sim)[1], 4]
+    if(k %% 1000 == 0){print(k)}
+    k = k + 1
+  }
+}
+
+resource_sim_summary = data.frame("resource_r" = r_sim_inputs, "ht" = ht_sim_inputs, "S_eq" = S_result, "I_eq" = I_result, "R_eq" = R_result, "Prev_eq" = I_result/(S_result + I_result))
+
+# 3. Plot results
+pal <- RColorBrewer::brewer.pal(6,"Spectral")
+resource_plot <- ggplot(data = resource_sim_summary, 
+                        aes(x = resource_r, y = Prev_eq, group = ht, color=as.factor(ht))) +
+                labs( x = "Resource gradient", y = "Equilibrium prevalence", 
+                      color = "Half saturation 
+transmission constant (ht)") +
+                scale_color_manual(values = pal) +
+                theme_classic() +
+                theme(legend.position = c(0.8, 0.4), axis.text=element_text(size=12),
+        axis.title=element_text(size=16,face="bold"), legend.title = element_text(size=12)) +
+                geom_line(size = 1) 
+resource_plot
+
+density_resource_plot <- ggplot(data = resource_sim_summary,
+                                aes(x = resource_r, y = (S_eq + I_eq), group = ht, color = as.factor(ht))) +
+                labs(x = "Resource gradient", y = "Host density", 
+                     color = "Half saturation 
+transmission constant (ht)") +
+                scale_color_manual(values = pal) +
+                theme_classic() +
+                theme(legend.position = c(0.8, 0.8), axis.text=element_text(size=12),
+        axis.title=element_text(size=16,face="bold"), legend.title = element_text(size=12)) +
+                geom_line(size = 1)
+density_resource_plot
+
+```
+
+```{r plot-time-series}
+data_sim <- as.data.frame(sim1)
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
+#png("TimeSeries.png",width=7,height=5,units="in",res=600)
+plot(data_sim$time,data_sim$I, ylim = c(0, 15), xlim = c(1, 1500), log ="", col = "#9E0142", lwd = 2, 
+     type = "l", xlab = "Time", ylab = "Host/Resource quantity")
+  lines(data_sim$time,data_sim$S, col = "#ABDDA4", lwd = 2) 
+  lines(data_sim$time,data_sim$R, col = "#3288BD", lwd = 2)
+  legend(x = 1100, y = 15, legend=c("Susceptible", "Infected","Resource"), bty = "n", lty = 1, lwd = 2, col = c("#ABDDA4", "#9E0142","#3288BD") )
+#dev.off()  
+  
+```
+
+The red line is when $\beta$ is most sensitive to resources and the green is least sensitive.
+
+### SI-Stress gradient model
+Our meta-analysis also shows that environmental stressors have a negative effect on survivorship and cause an increase in pathogen intensity. In addition, pollution also negatively impacts survival, but it decreases pathogen prevalence. We set up the differential equations: 
+
+$$ \frac{dS}{dt}=  \underbrace{b(S + \rho I) (1-\frac{S+I}{K})}_{\mbox{Births}} - \underbrace { \beta [e^{(\beta_E E)}]SI}_{\mbox{Transmission}}  - \underbrace{d [e^{(d_E E)}]S}_{\mbox{Deaths}}$$
+$$ \frac{dI}{dt}= \underbrace { \beta [e^{(\beta_E E)}]SI}_{\mbox{Transmission}}  - \underbrace{(d + \nu)e^{(d_E E)}I}_{\mbox{Increased mortality}}$$
+Susceptible hosts (S) grow logistically, and both susceptible and infected (I) hosts are proportionally affected by stressors. As an assumption of relative change, transmission rate ($\beta$) and background death (d) are sensible to environmental stressors, ($\beta_E$ and $d_E$ respectively). Infected hosts reproduce at a smaller rate than susceptible hosts ($\rho$) and have an increased mortality due to the pathogen ($\nu$). 
+
+#### Simulations
+##### Parameters 
+**Parameters and values used for simulations**
+
+| **Parameter** | **Definition** | **Value** |
+|---|---|---|
+| b | Maximum birth rate | 0.5 |
+| $\rho$ | Relative fecundity of I compared to S | 0.25 |
+| K | Density at which host birth rate hits zero from competition | 10 |
+| $\beta$ | Transmission rate | 0.01 |
+| $\beta_E$ | Sensitivity of $\beta$ to environmental stressor | Varies (-8, -4, -2, 0, 2, 4, 8) |
+| E | Arbitrary value for the environmental stressor | Varies (0-1) |
+| d | Background death rate | 0.01 |
+| $d_E$ | Sensitivity of d to environmental stressor | 2 |
+| $\nu$ | Virulence | 0.04 |
+
+
+```{r models2}
+# 1. Specifying the model
+
+SI_Env = function(t, y, parameters) {
+  S=y[1]; I=y[2];                 # For convenience, I like to spell out which state variable within the vector y is which
+  with(as.list(parameters),{      # The with() function allows us to write very clean equations for the model by telling r where to look for parameter names
+    dSdt= b*(S + rho*I)*(1 - (S+I)/K) - B*exp(BE*ENV)*S*I - d*exp(dE*ENV)*S    
+    dIdt= B*exp(BE*ENV)*S*I - (d + v)*exp(dE*ENV)*I   
+    result = c(dSdt,dIdt)          # The function for simulation expects us to store the result this way
+    return(list(result))
+  }
+  ) 
+}
+
+# 2. Set parameters, initial conditions and run the simulation
+
+Inits = c(S = 10, I = 1)
+pars = c(b = 0.5, rho = 0.25, K = 10, B = 0.01, BE=1, d = 0.01, dE=2, ENV=0, v = 0.04)
+timespan = 10000
+
+sim1 = ode(y=Inits, times=0:timespan, method="lsoda", func=SI_Env, parms = pars)
+
+# Simulate over environmental gradient and collect results
+S_result = numeric()
+I_result = numeric()
+E_inputs = seq(from = 0, to = 1, length.out = 10) # Switching back to R from C is slow, so I set the number of ENV values to 10 - fast enough
+BE_inputs = c(-8, -4, -2, 0, 2, 4, 8)#seq(from = -1, to = 40, length.out = 100)
+
+Env_inputs = numeric()
+BE_sim_inputs = numeric()
+k = 1
+    
+for(i in 1:length(E_inputs)){
+  pars["ENV"] = E_inputs[i]
+  for(j in 1:length(BE_inputs)){
+    pars["BE"] = BE_inputs[j]
+    sim = ode(y = Inits, times=0:timespan, parms = pars, method="lsoda", func=SI_Env, maxsteps=1e6)
+    Env_inputs[k] = E_inputs[i]
+    BE_sim_inputs[k] = BE_inputs[j]
+    S_result[k] = sim[dim(sim)[1], 2]
+    I_result[k] = sim[dim(sim)[1], 3]
+    if(k %% 1000 == 0){print(k)}
+    k = k + 1
+  }
+}
+
+environment_sim_summary = data.frame("Environment" = Env_inputs, "Beta_sensitivity" = BE_sim_inputs, "S_eq" = S_result, "I_eq" = I_result, "Prev_eq" = I_result/(S_result + I_result))
+
+# 3. Plot results
+
+pal <- RColorBrewer::brewer.pal(8,"Spectral")
+environment_plot <- ggplot(data = environment_sim_summary, 
+                           aes(x = Environment, y = Prev_eq, group = Beta_sensitivity, 
+                               color=as.factor(Beta_sensitivity))) +
+                    labs( x = "Environmental stress gradient", y = "Equilibrium prevalence", 
+                    color = 
+                    "Sensitivity of transmission 
+to the environment (βE)") +
+                    scale_color_manual(values = pal) +
+                    theme_classic() +
+                    theme(legend.position = "none", axis.text=element_text(size=12),
+        axis.title=element_text(size=16,face="bold"), legend.title = element_text(size=12)) +
+                    geom_line(size = 1) #+ geom_text(aes(label=Beta_sensitivity))
+environment_plot
+
+density_environment_plot <- ggplot(data = environment_sim_summary,
+                                   aes(x = Environment, y = (S_eq + I_eq), group = Beta_sensitivity,
+                                       color = as.factor(Beta_sensitivity))) +
+                    labs(x = "Environmental stress gradient", y = "Host density",
+                         color = "Sensitivity of transmission
+to the environment (βE)") +
+                    scale_color_manual(values = pal) +
+                    theme_classic() +
+                    theme(legend.position = "none", axis.text=element_text(size=12),
+        axis.title=element_text(size=16,face="bold"), legend.title = element_text(size=12)) +
+                    geom_line(size = 1)
+density_environment_plot
+
+
+```
+
+
+The dark green line is when $\beta$ is most positively affected by the environmental factor (= worst for the host) and the red line is for most negatively affected (= worst for the pathogen).
