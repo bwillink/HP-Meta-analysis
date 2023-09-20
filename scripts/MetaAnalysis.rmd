@@ -16,7 +16,7 @@ Load packages
 ```{r load-packages, message=FALSE, results='hide'}
 x <-
   c(
-    "metafor", "kableExtra", "Matrix", "dplyr", "wesanderson", "weightr", "ggplot2", "MuMIn", "RColorBrewer", "tidyverse", "patchwork", "devtools", "R.rsp", "orchaRd", "ggpubr")
+    "metafor", "kableExtra", "Matrix", "dplyr", "wesanderson", "weightr", "ggplot2", "MuMIn", "RColorBrewer", "tidyverse", "patchwork", "devtools", "R.rsp", "orchaRd", "ggpubr", "gridExtra")
 
 lapply(x, function(y) {
   # check if installed, if not install
@@ -817,16 +817,17 @@ Q1_OP <-
     alpha = 0.7
   ) +
   scale_fill_manual(values = rep(pal[c(8,11,5)], each = 2)) + scale_colour_manual(values = rep(pal[c(8,11,5)], each = 2)) +
-  theme(legend.position = c(0.25, 0.01), axis.title = element_text(size = 15), axis.text.y = element_text(size = 15)) +
+  theme(legend.position = c(0.25, 0.01), axis.title = element_text(face= "bold", size = 16),
+        axis.text.y = element_text(face = "bold", size = 16)) +
   scale_y_discrete(
-    labels = c("EE:fecundity",
-               "EE:survivorship",
-               "CP:fecundity",
-               "CP:survivorship",
-               "RL:fecundity",
-               "RL:survivorship"))
-#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
-#png("Q1_OP.png",width=12,height=7,units="in",res=600)
+    labels = c("Fecundity",
+               "Survivorship",
+               "Fecundity",
+               "Survivorship",
+               "Fecundity",
+               "Survivorship"))
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Submission EL/Figures")
+#png("Figure_2.png",width=12,height=7,units="in",res=600)
 Q1_OP
 #dev.off()
 ```
@@ -943,7 +944,9 @@ forest.default(x= Q2$beta, sei =  Q2$se, ci.lb =  Q2$ci.lb, ci.ub =  Q2$ci.ub,
 par_short <- c("EE:prevalence", "EE:intensity","EE:fecundity", "EE:survivorship",
                "CP:prevalence", "CP:intensity","CP:fecundity", "CP:survivorship",
                "RL:prevalence", "RL:intensity","RL:fecundity","RL:survivorship")
-
+par_short2 <- c("Prevalence", "Intensity","Fecundity", "Survivorship",
+               "Prevalence", "Intensity","Fecundity", "Survivorship",
+               "Prevalence", "Intensity","Fecundity", "Survivorship")
 pal <- RColorBrewer::brewer.pal(11,"Spectral")
 
 Q2_OP <-
@@ -954,13 +957,14 @@ Q2_OP <-
     angle = 0,
     alpha = 0.7
   ) +
-  theme(legend.position = c(0.3, 0.01), axis.title = element_text(size = 15), axis.text.y = element_text(size = 15)) +
+  theme(legend.position = c(0.3, 0.01), axis.title = element_text(face = "bold", size = 16),
+        axis.text.y = element_text(face = "bold", size = 16)) +
   scale_fill_manual(values = rep(pal[c(7,8,10,11,5,4)], each = 2)) +
   scale_colour_manual(values = rep(pal[c(7,8,10,11,5,4)], each = 2)) +
-  scale_y_discrete(labels = par_short)
+  scale_y_discrete(labels = par_short2)
 
-#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
-#png("Q2_OP.png",width=12,height=7,units="in",res=600)
+#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Submission EL/Figures")
+#png("Figure_3.png",width=12,height=7,units="in",res=600)
 Q2_OP
 #dev.off()
 ```
@@ -1312,10 +1316,11 @@ pal <- colorRampPalette(brewer.pal(9, "YlOrRd"))(nlvl)
 pal <-pal[order(match(pal,dat_1$g))]
 
 #plot funnel with conditional residuals
-#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
-#png("Funnelplot.Q1res.png",width=9,height=5,units="in",res=600)
-metafor::funnel(Q1res$resid, sqrt(dat_1$var.g), level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal, back = "white", refline=0, legend=TRUE, xlab = "Conditional residual", ylab = "Standard error")
-#dev.off()
+setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Submission EL/Figures")
+png("Funnelplot.Q1res.png",width=7,height=5,units="in",res=600)
+metafor::funnel(Q1res$resid, sqrt(dat_1$var.g), level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal, back = "white", refline=0, legend=TRUE, xlim = c(-15,15), ylim = c(0,2.5),
+                xlab = "Conditional residual", ylab = "Standard error")
+dev.off()
 ```
 
 We can see that as SE increases (e.g ~ 1) all studies report large negative fitness effects of environmental stress (large negative residuals). In other words, it seems that very small studies tend to find that environmental stress is more negative to fitness!
@@ -1341,10 +1346,22 @@ pal <- colorRampPalette(brewer.pal(9, "YlOrRd"))(nlvl)
 pal <-pal[order(match(pal,dat_2$g))]
 
 # plot funnel with all conditional residuals
-#setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Figures")
-#png("Funnelplot.Q2res.png",width=9,height=5,units="in",res=600)
-metafor::funnel(Q2res$resid, sqrt(dat_2$var.g), level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal, back = "white", refline=0, legend=TRUE, xlab = "Conditional residual", ylab = "Standard error")
-#dev.off()
+setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Submission EL/Figures")
+png("Funnelplot.Q2res.png",width=7,height=5,units="in",res=600)
+metafor::funnel(Q2res$resid, sqrt(dat_2$var.g), level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), col=pal, back = "white", refline=0, legend=TRUE, xlim = c(-15,15), ylim = c(0,2.5),
+                xlab = "Conditional residual", ylab = "Standard error")
+dev.off()
+
+# Make Figure 4
+library(png)
+library(grid)
+funnelA <- readPNG('/Users/amandavicente/Desktop/Drafts/Meta-analysis/Submission EL/Figures/Funnelplot.Q1res.png')
+funnelB <- readPNG('/Users/amandavicente/Desktop/Drafts/Meta-analysis/Submission EL/Figures/Funnelplot.Q2res.png')
+setwd("/Users/amandavicente/Desktop/Drafts/Meta-analysis/Submission EL/Figures")
+png("Figure_4.png",width=5,height=3,units="in",res=600)
+grid.arrange(rasterGrob(funnelA),rasterGrob(funnelB), nrow = 1)
+dev.off()
+
 ```
 
 Because this data set includes both the infectivity and fitness effects it's not surprising that small studies are distributed on both sides of the funnel. This does not mean absence of publication bias as negative effects for fitness and positive effects for (-) infectivity both would suggest that small studies tend to inflate the negative consequences of environmental stress. For the publication, I suggest we use -g for infectivity effects (currently g = infection intensity or prevalence) and/or we use funnel plots for only dataset 1.
